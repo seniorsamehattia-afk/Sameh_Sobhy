@@ -1,7 +1,7 @@
 # Sales_Insights_Pro.py
 #
 # A professional, multi-lingual, multi-file-type Sales Dashboard and Forecasting tool.
-# Version 2.0: Added caching for performance and improved type hinting.
+# Version 3.0: Added Interactive Dashboard tab with on-click plotting.
 #
 # Author: Sameh Sobhy Attia (Original)
 # Refactored by: Gemini (Professional Upgrade)
@@ -18,16 +18,11 @@
 #
 # ---Features---
 # - Caching for high-performance data processing.
+# - Interactive Dashboard: Click/select rows to dynamically update charts.
 # - Supports Excel, CSV, PDF, and HTML (table extraction) file uploads.
 # - Fully bilingual (English/Arabic) UI.
 # - Robust session state management (data persists across interactions).
-# - Clean, tabbed interface for:
-#   1. KPIs & Statistics
-#   2. Pivot Tables
-#   3. Charting
-#   4. Forecasting
-#   5. Automated Insights
-#   6. Report Exports (Excel, HTML, PDF)
+# - Clean, tabbed interface.
 # - Dark mode support.
 
 import streamlit as st
@@ -105,8 +100,9 @@ TRANSLATIONS = {
         'download_pivot': 'Download Pivot as Excel',
         'config': 'Column Configuration',
         'kpi_tab': 'KPIs & Stats',
+        'dashboard_tab': 'Interactive Dashboard',
         'pivot_tab': 'Pivot Table',
-        'charts_tab': 'Charts',
+        'charts_tab': 'Manual Charts',
         'forecast_tab': 'Forecasting',
         'insights_tab': 'Data Insights',
         'export_tab': 'Export Report',
@@ -127,6 +123,9 @@ TRANSLATIONS = {
         'pdf_warn': 'PDF parsing found 0 tables. Please check the file.',
         'html_warn': 'HTML parsing found 0 tables. Please check the file.',
         'footer_credit': 'Created by',
+        'dashboard_info': 'Select rows from the table below to dynamically generate charts based on your selection.',
+        'plot_selection_title': 'Plot for Selected Data',
+        'plot_all_title': 'Plot for All Data (No Rows Selected)',
     },
     'ar': {
         'title': 'تحليلات المبيعات والتنبؤ الاحترافي',
@@ -168,8 +167,9 @@ TRANSLATIONS = {
         'download_pivot': 'تحميل الجدول المحوري كـ Excel',
         'config': 'تكوين الأعمدة',
         'kpi_tab': 'المؤشرات والإحصائيات',
+        'dashboard_tab': 'لوحة تحكم تفاعلية',
         'pivot_tab': 'الجدول المحوري',
-        'charts_tab': 'المخططات',
+        'charts_tab': 'مخططات يدوية',
         'forecast_tab': 'التنبؤ',
         'insights_tab': 'تحليلات البيانات',
         'export_tab': 'تصدير التقرير',
@@ -190,6 +190,9 @@ TRANSLATIONS = {
         'pdf_warn': 'لم يتم العثور على جداول في ملف PDF. يرجى فحص الملف.',
         'html_warn': 'لم يتم العثور على جداول في ملف HTML. يرجى فحص الملف.',
         'footer_credit': 'إعداد',
+        'dashboard_info': 'اختر صفوفاً من الجدول أدناه لإنشاء مخططات ديناميكياً بناءً على اختيارك.',
+        'plot_selection_title': 'مخطط للبيانات المحددة',
+        'plot_all_title': 'مخطط لكل البيانات (لم يتم تحديد صفوف)',
     }
 }
 
@@ -678,7 +681,59 @@ def get_automated_insights(df: pd.DataFrame) -> Tuple[List[str], Dict[str, str],
     return insights, insights_dict, revenue_col, branch_col
 
 # ================================================
-# 7. MAIN STREAMLIT APP LAYOUT
+# 7. DYNAMIC PLOTTING FUNCTION (FOR DASHBOARD)
+# ================================================
+
+def plot_dynamic_chart(data: pd.DataFrame, chart_type: str, x_axis: Optional[str], y_axes: List[str]):
+    """Helper function to generate plots for the interactive dashboard."""
+    if not y_axes and chart_type not in ['Heatmap']:
+        st.warning(t('plot_warn'))
+        return
+    
+    try:
+        if chart_type in ['Line', 'Bar', 'Area', 'Scatter']:
+            x_arg = x_axis if x_axis else None
+            if x_arg:
+                df_melted = data.melt(id_vars=[x_arg], value_vars=y_axes, var_name='Metric', value_name='Value')
+            else:
+                df_melted = data[y_axes].melt(var_name='Metric', value_name='Value')
+                
+            if chart_type == 'Line':
+                fig = px.line(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart")
+            elif chart_type == 'Bar':
+                fig = px.bar(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart", barmode='group')
+            elif chart_type == 'Area':
+                fig = px.area(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart")
+            elif chart_type == 'Scatter':
+                fig = px.scatter(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart")
+            st.plotly_chart(fig, use_container_width=True)
+        
+        elif chart_type == 'Box':
+            fig = px.box(data[y_axes], y=y_axes)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        elif chart_type == 'Pie':
+            names_col = x_axis if x_axis else (data.columns[0] if not data.empty else None)
+            if names_col and y_axes:
+                fig = px.pie(data, names=names_col, values=y_axes[0], title=f"Pie Chart: {y_axes[0]}")
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("Please select an X-Axis (for labels) and at least one Y-Axis (for values).")
+        
+        elif chart_type == 'Heatmap':
+            num_df = data.select_dtypes(include=[np.number])
+            if num_df.shape[1] < 2:
+                st.warning(t('no_corr'))
+            else:
+                corr = num_df.corr()
+                fig = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Heatmap")
+                st.plotly_chart(fig, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Could not plot: {e}")
+
+# ================================================
+# 8. MAIN STREAMLIT APP LAYOUT
 # ================================================
 
 def main():
@@ -735,7 +790,12 @@ def main():
     # --- Data Loaded - Show Tabs ---
     
     if st.checkbox(t('show_data')):
-        st.dataframe(df)
+        # Calculate height: (rows + 1 header) * 35px/row + 3px extra
+        table_height = (len(df) + 1) * 35 + 3
+        # Set a max height to avoid crashing the browser on huge datasets
+        if table_height > 1000:
+            table_height = 1000
+        st.dataframe(df, use_container_width=True, height=table_height)
 
     all_cols = df.columns.tolist()
     default_numeric = [c for c in all_cols if pd.api.types.is_numeric_dtype(df[c])]
@@ -743,8 +803,9 @@ def main():
     date_col_index = all_cols.index(default_date) + 1 if default_date else 0
     
     # --- Tabbed Interface ---
-    tab_kpi, tab_pivot, tab_charts, tab_forecast, tab_insights, tab_export = st.tabs([
+    tab_kpi, tab_dashboard, tab_pivot, tab_charts, tab_forecast, tab_insights, tab_export = st.tabs([
         f"📊 {t('kpi_tab')}",
+        f"✨ {t('dashboard_tab')}",
         f"📋 {t('pivot_tab')}",
         f"📈 {t('charts_tab')}",
         f"🔮 {t('forecast_tab')}",
@@ -802,7 +863,37 @@ def main():
         else:
             st.info(t('no_numeric_stats'))
 
-    # --- 2. Pivot Table Tab ---
+    # --- 2. Interactive Dashboard Tab ---
+    with tab_dashboard:
+        st.subheader(t('dashboard_tab'))
+        st.info(t('dashboard_info'))
+
+        # --- Dashboard Controls ---
+        ch1, ch2, ch3 = st.columns(3)
+        with ch1:
+            dash_chart_type = st.selectbox(t('chart_type'), options=['Line', 'Bar', 'Area', 'Scatter', 'Box', 'Pie'], key='dash_chart_type')
+        with ch2:
+            dash_x_axis = st.selectbox(t('x_axis'), options=[''] + all_cols, index=date_col_index, key='dash_x')
+        with ch3:
+            dash_y_axes = st.multiselect(t('y_axis'), options=all_cols, default=default_numeric[:1], key='dash_y')
+
+        # --- Interactive Dataframe ---
+        st.dataframe(df, on_select="rerun", selection_mode="multi-row", key="dashboard_selector", use_container_width=True, height=300)
+
+        # --- Check selection and plot ---
+        selection_state = st.session_state.get("dashboard_selector", {})
+        selected_rows_indices = selection_state.get("selection", {}).get("rows", [])
+
+        if selected_rows_indices:
+            selected_df = df.iloc[selected_rows_indices]
+            st.subheader(f"{t('plot_selection_title')} ({len(selected_rows_indices)} {t('rows')})")
+            plot_dynamic_chart(selected_df, dash_chart_type, dash_x_axis, dash_y_axes)
+        else:
+            st.subheader(t('plot_all_title'))
+            plot_dynamic_chart(df, dash_chart_type, dash_x_axis, dash_y_axes)
+
+
+    # --- 3. Pivot Table Tab ---
     with tab_pivot:
         st.subheader(t('pivot_config'))
         p1, p2 = st.columns(2)
@@ -830,7 +921,7 @@ def main():
                 else:
                     st.error("Could not generate pivot table. Check selections.")
 
-    # --- 3. Charts Tab ---
+    # --- 4. Manual Charts Tab ---
     with tab_charts:
         st.subheader(t('charts'))
         ch1, ch2, ch3 = st.columns(3)
@@ -842,53 +933,11 @@ def main():
             y_axes = st.multiselect(t('y_axis'), options=all_cols, default=default_numeric[:1], key='chart_y')
 
         if st.button(t('plot')):
-            if not y_axes and chart_type not in ['Heatmap']:
-                st.warning(t('plot_warn'))
-            else:
-                with st.spinner('Plotting...'):
-                    try:
-                        if chart_type in ['Line', 'Bar', 'Area', 'Scatter']:
-                            x_arg = x_axis if x_axis else None
-                            if x_arg:
-                                df_melted = df.melt(id_vars=[x_arg], value_vars=y_axes, var_name='Metric', value_name='Value')
-                            else:
-                                df_melted = df[y_axes].melt(var_name='Metric', value_name='Value')
-                                
-                            if chart_type == 'Line':
-                                fig = px.line(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart")
-                            elif chart_type == 'Bar':
-                                fig = px.bar(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart", barmode='group')
-                            elif chart_type == 'Area':
-                                fig = px.area(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart")
-                            elif chart_type == 'Scatter':
-                                fig = px.scatter(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart")
-                            st.plotly_chart(fig, use_container_width=True)
-                        
-                        elif chart_type == 'Box':
-                            fig = px.box(df[y_axes], y=y_axes)
-                            st.plotly_chart(fig, use_container_width=True)
-                        
-                        elif chart_type == 'Pie':
-                            names_col = x_axis if x_axis else (all_cols[0] if all_cols else None)
-                            if names_col:
-                                fig = px.pie(df, names=names_col, values=y_axes[0], title=f"Pie Chart: {y_axes[0]}")
-                                st.plotly_chart(fig, use_container_width=True)
-                            else:
-                                st.warning("Please select an X-Axis for Pie chart labels.")
-                        
-                        elif chart_type == 'Heatmap':
-                            num_df = df.select_dtypes(include=[np.number])
-                            if num_df.shape[1] < 2:
-                                st.warning(t('no_corr'))
-                            else:
-                                corr = num_df.corr()
-                                fig = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Heatmap")
-                                st.plotly_chart(fig, use_container_width=True)
+            with st.spinner('Plotting...'):
+                plot_dynamic_chart(df, chart_type, x_axis, y_axes)
 
-                    except Exception as e:
-                        st.error(f"Could not plot: {e}")
 
-    # --- 4. Forecasting Tab ---
+    # --- 5. Forecasting Tab ---
     with tab_forecast:
         st.subheader(t('forecasting'))
         fc1, fc2 = st.columns(2)
@@ -902,7 +951,7 @@ def main():
                 # Pass the globally selected date_col from the KPI tab
                 run_forecast(df, date_col, fc_col, fc_periods)
 
-    # --- 5. Data Insights Tab ---
+    # --- 6. Data Insights Tab ---
     with tab_insights:
         st.subheader(t('insights'))
         with st.spinner('Generating insights...'):
@@ -944,11 +993,12 @@ def main():
         st.subheader(t('correlations'))
         num_df = df.select_dtypes(include=[np.number])
         if num_df.shape[1] >= 2:
-            st.dataframe(num_df.corr().style.background_gradient(cmap='vlag', vmin=-1, vmax=1).format("{:,.2f}"))
+            # FIX: Changed cmap='vlag' to 'coolwarm' to resolve ValueError
+            st.dataframe(num_df.corr().style.background_gradient(cmap='coolwarm', vmin=-1, vmax=1).format("{:,.2f}"))
         else:
             st.info(t('no_corr'))
 
-    # --- 6. Export Tab ---
+    # --- 7. Export Tab ---
     with tab_export:
         st.subheader(t('export_tab'))
         # Get cached insights and stats
@@ -1005,4 +1055,7 @@ def main():
 # ================================================
 if __name__ == "__main__":
     main()
+
+
+
 
