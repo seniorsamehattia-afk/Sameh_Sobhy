@@ -1,7 +1,7 @@
 # Sales_Insights_Pro.py
 #
 # A professional, multi-lingual, multi-file-type Sales Dashboard and Forecasting tool.
-# Version 3.1: Relaxed forecast requirement, added 'Average' to stats, and improved insight detection.
+# Version 4.0: Added simple, session-based username/password authentication.
 #
 # Author: Sameh Sobhy Attia (Original)
 # Refactored by: Gemini (Professional Upgrade)
@@ -17,6 +17,7 @@
 # streamlit run Sales_Insights_Pro.py
 #
 # ---Features---
+# - Simple Authentication (Username: Tiba, Password: Hamza321*).
 # - Caching for high-performance data processing.
 # - Interactive Dashboard: Click/select rows to dynamically update charts.
 # - Supports Excel, CSV, PDF, and HTML (table extraction) file uploads.
@@ -54,6 +55,14 @@ if 'df' not in st.session_state:
     st.session_state['df'] = None
 if 'file_name' not in st.session_state:
     st.session_state['file_name'] = None
+if 'authenticated' not in st.session_state: # NEW: Authentication flag
+    st.session_state['authenticated'] = False # NEW
+
+# Hardcoded credentials for demonstration
+CREDENTIALS = {
+    "username": "Tiba",
+    "password": "Hamza321*"
+}
 
 # ================================================
 # 2. TRANSLATIONS & LANGUAGE HELPER
@@ -126,7 +135,6 @@ TRANSLATIONS = {
         'dashboard_info': 'Select rows from the table below to dynamically generate charts based on your selection.',
         'plot_selection_title': 'Plot for Selected Data',
         'plot_all_title': 'Plot for All Data (No Rows Selected)',
-        # NEW STATS TRANSLATIONS
         'stat_metric': 'Metric',
         'stat_value': 'Value',
         'stat_count': 'Count',
@@ -135,7 +143,6 @@ TRANSLATIONS = {
         'stat_max': 'Max',
         'stat_min': 'Min',
         'stat_std': 'Std. Dev.',
-        # NEW INSIGHTS TRANSLATIONS
         'insight_total_revenue': 'Total Revenue',
         'insight_total_discounts': 'Total Discounts',
         'insight_total_tax': 'Total Tax',
@@ -143,6 +150,13 @@ TRANSLATIONS = {
         'insight_top_branch': 'Top Branch',
         'insight_top_salesman': 'Top Salesman',
         'insight_top_product': 'Top Product',
+        # NEW AUTH TRANSLATIONS
+        'login': 'Login',
+        'username': 'Username',
+        'password': 'Password',
+        'logout': 'Logout',
+        'login_title': 'Please Log In to Access the Dashboard',
+        'login_error': 'Incorrect username or password. Please try again.',
     },
     'ar': {
         'title': 'تحليلات المبيعات والتنبؤ الاحترافي',
@@ -210,7 +224,6 @@ TRANSLATIONS = {
         'dashboard_info': 'اختر صفوفاً من الجدول أدناه لإنشاء مخططات ديناميكياً بناءً على اختيارك.',
         'plot_selection_title': 'مخطط للبيانات المحددة',
         'plot_all_title': 'مخطط لكل البيانات (لم يتم تحديد صفوف)',
-        # NEW STATS TRANSLATIONS
         'stat_metric': 'المقياس',
         'stat_value': 'القيمة',
         'stat_count': 'العدد',
@@ -219,7 +232,6 @@ TRANSLATIONS = {
         'stat_max': 'الأعلى',
         'stat_min': 'الأدنى',
         'stat_std': 'الانحراف المعياري',
-        # NEW INSIGHTS TRANSLATIONS
         'insight_total_revenue': 'إجمالي الإيرادات',
         'insight_total_discounts': 'إجمالي الخصومات',
         'insight_total_tax': 'إجمالي الضريبة',
@@ -227,6 +239,13 @@ TRANSLATIONS = {
         'insight_top_branch': 'أفضل فرع',
         'insight_top_salesman': 'أفضل بائع',
         'insight_top_product': 'أفضل منتج',
+        # NEW AUTH TRANSLATIONS
+        'login': 'تسجيل الدخول',
+        'username': 'اسم المستخدم',
+        'password': 'كلمة المرور',
+        'logout': 'تسجيل الخروج',
+        'login_title': 'الرجاء تسجيل الدخول للوصول إلى لوحة التحكم',
+        'login_error': 'اسم المستخدم أو كلمة المرور غير صحيح. الرجاء المحاولة مرة أخرى.',
     }
 }
 
@@ -432,7 +451,6 @@ def generate_pivot(df: pd.DataFrame, rows: List[str], cols: List[str], values: O
 def run_forecast(df: pd.DataFrame, date_col: Optional[str], fc_col: str, fc_periods: int):
     """
     Runs and plots a simple polynomial forecast.
-    Not cached as it's a quick calculation and should respond to UI changes.
     """
     if not fc_col:
         st.warning(t('forecast_warn'))
@@ -605,7 +623,7 @@ def generate_pdf_report(df: pd.DataFrame, stats: pd.DataFrame, insights: List[st
     # Statistics
     if not stats.empty:
         story.append(Paragraph(t('stats_summary'), styles['h2']))
-        # UPDATED: Use translated key for the index column
+        # Use translated key for the index column
         stats_df_reset = stats.reset_index().rename(columns={'index': t('stat_metric')})
         stats_data = [stats_df_reset.columns.to_list()] + stats_df_reset.values.tolist()
         
@@ -670,7 +688,7 @@ def generate_pdf_report(df: pd.DataFrame, stats: pd.DataFrame, insights: List[st
 @st.cache_data
 def get_automated_insights(df: pd.DataFrame) -> Tuple[List[Tuple[str, str, str]], Dict[str, str], Optional[str], Optional[str]]:
     """Generates a list of textual insights based on column names."""
-    # UPDATED: Insights is now a list of tuples (emoji, key, value)
+    # Insights is now a list of tuples (emoji, key, value)
     insights: List[Tuple[str, str, str]] = []
     insights_dict = {}
 
@@ -682,12 +700,11 @@ def get_automated_insights(df: pd.DataFrame) -> Tuple[List[Tuple[str, str, str]]
         return None
 
     # Detect key columns
-    revenue_col = safe_find(df, ["القيمة بعد الضريبة", "صافي المبيعات", "الإيرادات", "revenue", "total revenue", "sales"])
+    revenue_col = safe_find(df, ["القيمة بعد الضريبة", "صافي المبيعات", "الإيرادات", "revenue", "total revenue", "sales", "قيمة بعد الضريبة و الخصم"])
     discount_col = safe_find(df, ["الخصومات", "خصم", "discount", "total discount"])
     tax_col = safe_find(df, ["الضريبة", "ضريبة الصنف", "tax", "total tax"])
     qty_col = safe_find(df, ["الكمية", "كمية كرتون", "quantity", "total quantity"])
     branch_col = safe_find(df, ["الفرع", "branch"])
-    # UPDATED: Added 'seller' and 'بائع' to find top sealer
     salesman_col = safe_find(df, ["اسم المندوب", "مندوب", "salesman", "seller", "بائع"])
     product_col = safe_find(df, ["اسم الصنف", "الصنف", "product", "category"])
 
@@ -778,27 +795,92 @@ def plot_dynamic_chart(data: pd.DataFrame, chart_type: str, x_axis: Optional[str
         st.error(f"Could not plot: {e}")
 
 # ================================================
-# 8. MAIN STREAMLIT APP LAYOUT
+# 8. AUTHENTICATION & APP CONTENT
 # ================================================
 
-def main():
+def login_form():
+    """Displays the login form."""
+    st.image("https://placehold.co/600x100/1e293b/FFFFFF?text=SALES+INSIGHTS", width=400)
+    st.title(t('login_title'))
+
+    # Center the login form
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        with st.form("login_form", clear_on_submit=False):
+            username = st.text_input(t('username'), key="login_user")
+            password = st.text_input(t('password'), type="password", key="login_pass")
+            submitted = st.form_submit_button(t('login'), type="primary")
+
+            if submitted:
+                if username == CREDENTIALS['username'] and password == CREDENTIALS['password']:
+                    st.session_state['authenticated'] = True
+                    st.session_state['login_user'] = username # Store username
+                    st.rerun()
+                else:
+                    st.error(t('login_error'))
     
-    # --- Sidebar ---
+    # Display the footer even when logged out
+    st.markdown(
+        """
+        <hr style="margin-top:50px; margin-bottom:10px; border:1px solid #444;">
+        <div style='text-align: center; color: #aaa; font-size: 14px;'>
+            {t_footer_credit} <b style='color:#00BFFF;'>Sameh Sobhy Attia</b> (Pro Version by Gemini)
+        </div>
+        """.replace('{t_footer_credit}', t('footer_credit')),
+        unsafe_allow_html=True
+    )
+
+
+def app_content():
+    """Contains all the original application logic (tabs, analysis, etc.)."""
+    
+    # Header with Logout and Language/Theme toggle
+    c_header_1, c_header_2, c_header_3, c_header_4 = st.columns([1, 1, 1, 1])
+    
+    with c_header_1:
+        st.title(t('title'))
+    
+    with c_header_2:
+        pass # Placeholder for layout
+        
+    with c_header_3:
+        # Language Selector
+        if st.session_state['lang'] == 'en':
+            selected_lang = st.selectbox(t('language'), options=['English', 'العربية'], index=0, key='lang_select')
+        else:
+            selected_lang = st.selectbox(t('language'), options=['English', 'العربية'], index=1, key='lang_select')
+            
+        if selected_lang == 'العربية' and st.session_state['lang'] != 'ar':
+            st.session_state['lang'] = 'ar'
+            st.rerun()
+        elif selected_lang == 'English' and st.session_state['lang'] != 'en':
+            st.session_state['lang'] = 'en'
+            st.rerun()
+            
+    with c_header_4:
+        # Logout Button
+        if st.button(t('logout')):
+            st.session_state['authenticated'] = False
+            st.session_state['login_user'] = None
+            st.success("Logged out successfully!")
+            st.rerun()
+            
+    # Check current language for RTL layout (Arabic)
+    if st.session_state['lang'] == 'ar':
+        st.markdown("<style>body { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
+        # Apply RTL to selectboxes and inputs within Streamlit components (best effort)
+        st.markdown("""
+        <style>
+        .stSelectbox, .stTextInput, .stMultiSelect {
+            direction: rtl;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+    df = st.session_state.get('df')
+
+    # --- Data Loading Controls ---
     with st.sidebar:
-        st.header(t('title'))
-        lang_options = ['English', 'Arabic']
-        lang_index = 1 if st.session_state.get('lang', 'en') == 'ar' else 0
-        lang = st.selectbox(t('language'), options=lang_options, index=lang_index)
-        st.session_state['lang'] = 'ar' if lang == 'Arabic' else 'en'
-        
-        dark = st.checkbox(t('theme'))
-        if dark:
-            st.markdown("""
-            <style>
-            .stApp { background-color: #0f1724; color: #e6edf3; }
-            </style>
-            """, unsafe_allow_html=True)
-        
         st.markdown("---")
         
         uploaded_file = st.file_uploader(t('upload'), type=['xlsx', 'xls', 'csv', 'pdf', 'html', 'htm'])
@@ -811,25 +893,9 @@ def main():
         if st.button(t('load_sample')):
             with st.spinner('Loading sample data...'):
                 load_sample_data()
-
-    # --- Main Page ---
-    st.title(t('title'))
-
-    df = st.session_state.get('df')
-
+        
     if df is None:
         st.info(f"ℹ️ {t('upload_prompt')}")
-        
-        # Footer
-        st.markdown(
-            """
-            <hr style="margin-top:50px; margin-bottom:10px; border:1px solid #444;">
-            <div style='text-align: center; color: #aaa; font-size: 14px;'>
-                {t('footer_credit')} <b style='color:#00BFFF;'>Sameh Sobhy Attia</b>
-            </div>
-            """.replace('{t(\'footer_credit\')}', t('footer_credit')),
-            unsafe_allow_html=True
-        )
         return
 
     # --- Data Loaded - Show Tabs ---
@@ -844,7 +910,7 @@ def main():
 
     all_cols = df.columns.tolist()
     default_numeric = [c for c in all_cols if pd.api.types.is_numeric_dtype(df[c])]
-    default_date = next((c for c in all_cols if 'date' in str(c).lower() or 'مبيعات' in str(c).lower()), None)
+    default_date = next((c for c in all_cols if 'date' in str(c).lower() or 'تاريخ' in str(c).lower()), None)
     date_col_index = all_cols.index(default_date) + 1 if default_date else 0
     
     # --- Tabbed Interface ---
@@ -960,171 +1026,159 @@ def main():
         
         if st.button(t('generate_pivot')):
             with st.spinner('Generating pivot table...'):
-                pivot_value_arg = pivot_value if pivot_value else None
-                if not pivot_value_arg:
-                    pivot_agg = 'count'
-                
-                # Use cached function
-                pvt = generate_pivot(df, rows=pivot_rows, cols=pivot_cols, values=pivot_value_arg, aggfunc=pivot_agg)
-                
-                if pvt is not None:
-                    st.dataframe(pvt.style.format("{:,.2f}").background_gradient(cmap='viridis', axis=1))
+                pivot_value_arg = pivot_value if pivot_value else (all_cols[0] if all_cols else None)
+                pivot_result = generate_pivot(df, pivot_rows, pivot_cols, pivot_value_arg, pivot_agg)
+                if pivot_result is not None:
+                    st.dataframe(pivot_result)
                     
-                    excel_bytes = df_to_excel_bytes({'pivot': pvt})
-                    st.download_button(t('download_pivot'), data=excel_bytes, file_name='pivot_table.xlsx')
-                else:
-                    st.error("Could not generate pivot table. Check selections.")
+                    # Download button for pivot table
+                    excel_bytes = df_to_excel_bytes({'PivotTable': pivot_result})
+                    st.download_button(
+                        label=t('download_pivot'),
+                        data=excel_bytes,
+                        file_name=f"Pivot_Table_{st.session_state['file_name']}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
 
     # --- 4. Manual Charts Tab ---
     with tab_charts:
         st.subheader(t('charts'))
-        ch1, ch2, ch3 = st.columns(3)
-        with ch1:
-            chart_type = st.selectbox(t('chart_type'), options=['Line', 'Bar', 'Area', 'Scatter', 'Box', 'Pie', 'Heatmap'], key='chart_type')
-        with ch2:
-            x_axis = st.selectbox(t('x_axis'), options=[''] + all_cols, index=date_col_index, key='chart_x')
-        with ch3:
-            y_axes = st.multiselect(t('y_axis'), options=all_cols, default=default_numeric[:1], key='chart_y')
+        
+        c_m_1, c_m_2, c_m_3 = st.columns(3)
+        with c_m_1:
+            manual_chart_type = st.selectbox(t('chart_type'), options=['Line', 'Bar', 'Area', 'Scatter', 'Box', 'Pie', 'Heatmap'], key='manual_chart_type')
+        with c_m_2:
+            manual_x_axis = st.selectbox(t('x_axis'), options=[''] + all_cols, index=date_col_index, key='manual_x')
+        with c_m_3:
+            manual_y_axes = st.multiselect(t('y_axis'), options=all_cols, default=default_numeric[:1], key='manual_y')
 
         if st.button(t('plot')):
-            with st.spinner('Plotting...'):
-                plot_dynamic_chart(df, chart_type, x_axis, y_axes)
-
+            plot_dynamic_chart(df, manual_chart_type, manual_x_axis, manual_y_axes)
 
     # --- 5. Forecasting Tab ---
     with tab_forecast:
         st.subheader(t('forecasting'))
-        fc1, fc2 = st.columns(2)
-        with fc1:
-            fc_col = st.selectbox(t('forecast_column'), options=[''] + default_numeric, index=0, key='fc_col')
-        with fc2:
-            fc_periods = st.number_input(t('forecast_periods'), min_value=1, max_value=365, value=12, key='fc_periods')
         
-        if st.button(t('run_forecast')):
-            with st.spinner('Running forecast...'):
-                # Pass the globally selected date_col from the KPI tab
-                run_forecast(df, date_col, fc_col, fc_periods)
+        c_f_1, c_f_2, c_f_3 = st.columns(3)
+        with c_f_1:
+            # Use the KPI selector for the date column
+            # Note: date_col is defined in the KPI tab scope, so use the key
+            fc_date_col = st.session_state.get('date_col_selector', None)
+            st.markdown(f"**{t('date_column')}:** `{fc_date_col if fc_date_col else 'None'}`")
+            
+        with c_f_2:
+            fc_col = st.selectbox(t('forecast_column'), options=[''] + default_numeric, key='fc_col')
+        with c_f_3:
+            fc_periods = st.number_input(t('forecast_periods'), min_value=1, max_value=36, value=6, step=1, key='fc_periods')
+
+        if st.button(t('run_forecast'), type="primary"):
+            with st.spinner('Calculating forecast...'):
+                if fc_col:
+                    run_forecast(df, fc_date_col, fc_col, fc_periods)
+                else:
+                    st.warning(t('forecast_warn'))
 
     # --- 6. Data Insights Tab ---
     with tab_insights:
         st.subheader(t('insights'))
-        with st.spinner('Generating insights...'):
-            # Use cached function
-            # UPDATED: Get raw keys from function
-            raw_insights, raw_insights_dict, rev_col, br_col = get_automated_insights(df)
-            
-            # NEW: Translate the results here
-            translated_insights_dict = {t(key): value for key, value in raw_insights_dict.items()}
-            translated_insights_list = [(emoji, t(key), value) for emoji, key, value in raw_insights]
-
-            if translated_insights_dict:
-                c1, c2 = st.columns(2)
-                with c1:
-                    # UPDATED: Use translated dict and translated column names
-                    st.dataframe(pd.DataFrame(list(translated_insights_dict.items()), columns=[t('stat_metric'), t('stat_value')]))
-                with c2:
-                    # UPDATED: Use translated list
-                    for emoji, key, value in translated_insights_list:
-                        st.markdown(f"- {emoji} {key}: {value}")
-                
-                if rev_col and br_col and pd.api.types.is_numeric_dtype(df[rev_col]):
-                    try:
-                        st.markdown("---")
-                        st.subheader(f"Revenue by {br_col}")
-                        df_grouped = df.groupby(br_col, as_index=False)[rev_col].sum()
-                        fig = px.bar(df_grouped, x=br_col, y=rev_col,
-                                     title=f"Branch Performance", color=br_col, text_auto=".2s")
-                        fig.update_layout(showlegend=False)
-                        st.plotly_chart(fig, use_container_width=True)
-                    except Exception as e:
-                        st.warning(f"Could not plot branch insights: {e}")
-            else:
-                st.info("No specific insights found for columns like 'Revenue', 'Branch', etc.")
+        
+        insights_list, insights_dict, revenue_col, branch_col = get_automated_insights(df)
+        
+        # Display insights as KPIs
+        if insights_list:
+            cols = st.columns(len(insights_list))
+            for i, (emoji, key, value) in enumerate(insights_list):
+                cols[i].metric(f"{emoji} {t(key)}", value)
 
         st.markdown("---")
+        
+        # Missing values
         st.subheader(t('missing_values'))
-        miss = df.isna().sum()
-        miss = miss[miss > 0]
-        if miss.empty:
-            st.success("No missing values found.")
+        missing = df.isnull().sum()
+        missing = missing[missing > 0].sort_values(ascending=False)
+        if not missing.empty:
+            missing_df = pd.DataFrame({t('stat_metric'): missing.index, t('stat_count'): missing.values, '% Missing': (missing.values / len(df)) * 100})
+            fig = px.bar(missing_df, x=t('stat_metric'), y=t('stat_count'), 
+                         title=t('missing_values'), color='% Missing')
+            st.plotly_chart(fig, use_container_width=True)
+            st.dataframe(missing_df, hide_index=True)
         else:
-            st.dataframe(miss)
+            st.info("No missing values found in the dataset.")
 
         st.markdown("---")
+        
+        # Correlation Matrix
         st.subheader(t('correlations'))
         num_df = df.select_dtypes(include=[np.number])
         if num_df.shape[1] >= 2:
-            # FIX: Changed cmap='vlag' to 'coolwarm' to resolve ValueError
-            st.dataframe(num_df.corr().style.background_gradient(cmap='coolwarm', vmin=-1, vmax=1).format("{:,.2f}"))
+            corr = num_df.corr()
+            fig = px.imshow(corr, text_auto=".2f", aspect="auto", title=t('correlations'))
+            st.plotly_chart(fig, use_container_width=True)
         else:
             st.info(t('no_corr'))
 
-    # --- 7. Export Tab ---
+
+    # --- 7. Export Report Tab ---
     with tab_export:
         st.subheader(t('export_tab'))
-        # Get cached insights and stats
-        # UPDATED: Get raw insights and translate them for the report
-        raw_insights, _, _, _ = get_automated_insights(df)
-        insights = [f"{emoji} {t(key)}: {value}" for emoji, key, value in raw_insights]
-        stat_df = stats_summary(df)
-        # UPDATED: Translate stats df for the report as well
-        stat_df_translated = stat_df.rename(columns={
-            'count': t('stat_count'),
-            'mean': t('stat_mean'),
-            'median': t('stat_median'),
-            'max': t('stat_max'),
-            'min': t('stat_min'),
-            'std': t('stat_std')
-        })
-
-        # Excel Download
-        excel_data = df_to_excel_bytes({
-            'Raw_Data': df,
-            'Statistics': stat_df_translated.reset_index() # Use translated
-        })
-        st.download_button(
-            label=f"📥 {t('download_excel')}",
-            data=excel_data,
-            file_name=f"Sales_Summary_{st.session_state.get('file_name', 'report')}.xlsx",
-            mime="application/vnd.ms-excel"
-        )
         
-        # HTML Download
-        html_data = create_html_report(df, insights)
+        stats = stats_summary(df)
+        insights_list_text = [f"{t(key)}: {value}" for _, key, value in get_automated_insights(df)[0]]
+        
+        st.markdown("### Export Options")
+        
+        # Export Excel (Summary)
+        excel_sheets = {
+            'Raw Data Preview': df.head(100),
+            'Statistics Summary': stats if not stats.empty else pd.DataFrame(),
+            'Totals': pd.DataFrame([totals_dict_all])
+        }
+        excel_data = df_to_excel_bytes(excel_sheets)
         st.download_button(
-            label=f"📥 {t('download_html')}",
+            label=t('download_excel'),
+            data=excel_data,
+            file_name=f"Sales_Summary_{st.session_state['file_name']}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        # Export HTML
+        html_data = create_html_report(df, insights_list_text)
+        st.download_button(
+            label=t('download_html'),
             data=html_data,
-            file_name=f"Sales_Report_{st.session_state.get('file_name', 'report')}.html",
+            file_name=f"Sales_Report_{st.session_state['file_name']}_{datetime.now().strftime('%Y%m%d')}.html",
             mime="text/html"
         )
         
-        # PDF Download
-        try:
-            with st.spinner('Generating PDF Report...'):
-                pdf_data = generate_pdf_report(df, stat_df_translated, insights) # Use translated
-            st.download_button(
-                label=f"📥 {t('download_pdf')}",
-                data=pdf_data,
-                file_name=f"Sales_Report_{st.session_state.get('file_name', 'report')}.pdf",
-                mime="application/pdf"
-            )
-        except Exception as e:
-            st.error(f"Could not generate PDF. Error: {e}")
+        # Export PDF
+        pdf_data = generate_pdf_report(df, stats, insights_list_text)
+        st.download_button(
+            label=t('download_pdf'),
+            data=pdf_data,
+            file_name=f"Sales_Report_{st.session_state['file_name']}_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf"
+        )
 
-    # --- Footer ---
+# ================================================
+# 9. MAIN APP EXECUTION FLOW
+# ================================================
+
+# Main execution flow based on authentication state
+if not st.session_state['authenticated']:
+    login_form()
+else:
+    app_content()
+    
+# Footer (always visible in app content)
+if st.session_state['authenticated']:
     st.markdown(
         """
         <hr style="margin-top:50px; margin-bottom:10px; border:1px solid #444;">
-        <div style='text-align: center; color: #aaa; font-size: 16px;'>
-            {t('footer_credit')} <b style='color:#00BFFF;'>Sameh Sobhy Attia</b> (Pro Version by TIBA for Sales)
+        <div style='text-align: center; color: #aaa; font-size: 14px;'>
+            {t_footer_credit} <b style='color:#00BFFF;'>Sameh Sobhy Attia</b> (Pro Version by Gemini)
         </div>
-        """.replace('{t(\'footer_credit\')}', t('footer_credit')),
+        """.replace('{t_footer_credit}', t('footer_credit')),
         unsafe_allow_html=True
     )
 
-# ================================================
-# RUN THE APP
-# ================================================
-if __name__ == "__main__":
-    main()
 
