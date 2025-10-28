@@ -1,10 +1,14 @@
 # Sales_Insights_Pro.py
 #
 # A professional, multi-lingual, multi-file-type Sales Dashboard and Forecasting tool.
-# Version 4.0: Added simple, session-based username/password authentication.
+# Version 4.1:
+# - Integrated login system with main application.
+# - Re-built the main UI layout which was missing from the provided file.
+# - Added Monthly/Weekly frequency selection for forecasting.
+# - Changed Automated Insights layout to a vertical stack.
 #
 # Author: Sameh Sobhy Attia (Original)
-# Refactored by: Gemini (Professional Upgrade)
+# Refactored by: Gemini (Professional Upgrade & Fixes)
 #
 # ---Dependencies---
 # To run this app, you need Streamlit and other data libraries.
@@ -22,7 +26,7 @@
 # - Interactive Dashboard: Click/select rows to dynamically update charts.
 # - Supports Excel, CSV, PDF, and HTML (table extraction) file uploads.
 # - Fully bilingual (English/Arabic) UI.
-# - Robust session state management (data persists across interactions).
+# - Robust session state management.
 # - Clean, tabbed interface.
 # - Dark mode support.
 
@@ -46,7 +50,11 @@ from lxml import etree # Used for HTML parsing, openpyxl needs it
 # 1. APP CONFIGURATION & INITIALIZATION
 # ================================================
 
-st.set_page_config(page_title='Sales Insights Pro', layout='wide')
+st.set_page_config(
+    page_title='Sales Insights Pro',
+    layout='wide',
+    initial_sidebar_state="expanded"
+)
 
 # Initialize session state
 if 'lang' not in st.session_state:
@@ -55,10 +63,10 @@ if 'df' not in st.session_state:
     st.session_state['df'] = None
 if 'file_name' not in st.session_state:
     st.session_state['file_name'] = None
-if 'authenticated' not in st.session_state: # NEW: Authentication flag
-    st.session_state['authenticated'] = False # NEW
-if 'login_user' not in st.session_state: # FIX: Initialize login_user to prevent StreamlitAPIException
-    st.session_state['login_user'] = None # FIX
+if 'authenticated' not in st.session_state:
+    st.session_state['authenticated'] = False
+if 'login_user' not in st.session_state:
+    st.session_state['login_user'] = None
 
 # Hardcoded credentials for demonstration
 CREDENTIALS = {
@@ -69,101 +77,7 @@ CREDENTIALS = {
 # ================================================
 # 2. TRANSLATIONS & LANGUAGE HELPER
 # ================================================
-import streamlit as st
-# Removed 'import time' as the simulated delay is no longer used
 
-# --- 1. Session State Initialization (Safety Check) ---
-# This ensures that these keys exist before the application logic tries to read them.
-if 'authenticated' not in st.session_state:
-    st.session_state['authenticated'] = False
-if 'lang' not in st.session_state:
-    st.session_state['lang'] = 'en'
-    
-# Set up the page configuration early
-st.set_page_config(
-    page_title="Sales Insights Pro",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# --- 2. Application Views ---
-
-def sales_insights_app():
-    """Displays the secure content (the main sales dashboard) to authenticated users."""
-    st.header("📈 Sales Insights Pro Dashboard")
-    st.markdown("""
-        ### Welcome, Admin!
-        This is the secure area of the **Sales Insights Pro** application. 
-        You now have access to proprietary data and interactive analytics.
-    """)
-    
-    # --- Start of Placeholder Sales Content ---
-    st.success("Data loaded successfully.")
-    
-    st.subheader("Key Performance Indicators (KPIs)")
-    
-    # Show dummy sales metrics
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total Revenue", "$1.2M", "5%", delta_color="normal")
-    with col2:
-        st.metric("New Customers", "450", "12%", delta_color="normal")
-    with col3:
-        st.metric("Conversion Rate", "4.8%", "-0.2%", delta_color="inverse")
-
-    st.subheader("Monthly Trend Analysis")
-    st.line_chart({
-        "Jan": 100, "Feb": 120, "Mar": 90, 
-        "Apr": 150, "May": 180, "Jun": 175
-    }, use_container_width=True)
-    
-    # --- End of Placeholder Sales Content ---
-
-    # Optional: Display some session state info
-    st.divider()
-    st.caption(f"Authentication Status: {st.session_state['authenticated']} | Language: {st.session_state['lang']}")
-
-
-def login_form():
-    """Displays the login form using the requested minimal structure."""
-    st.title("🔒 Login Required")
-    st.markdown("Please enter your credentials to access the secure dashboard.")
-    
-    # Simple form structure without extra containers or centering
-    with st.form("login"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        login_btn = st.form_submit_button("Login") # Minimal button text
-
-        if login_btn:
-            # Credentials check (Admin: admin, Pass: 123)
-            if username == "admin" and password == "123":
-                st.session_state['authenticated'] = True
-                st.success("✅ Login successful!")
-                st.rerun() 
-            else:
-                st.error("❌ Incorrect username or password.")
-
-
-# --- 3. Main Application Flow (Conditional Rendering) ---
-
-# Note: Using the existing function name 'sales_insights_app' 
-# in place of 'main_app' as requested by the user's logic flow.
-if not st.session_state['authenticated']:
-    login_form()
-else:
-    # If authenticated, show the main app content
-    sales_insights_app()
-    
-
-# --- 4. Simple Logout Button (In the sidebar for convenience) ---
-# This block is added separately as requested by the user's minimal structure.
-if st.session_state['authenticated']:
-    # Use a simple button structure as requested
-    if st.sidebar.button("Logout"):
-        st.session_state['authenticated'] = False
-        st.info("You have been logged out.")
-        st.rerun()
 TRANSLATIONS = {
     'en': {
         'title': 'Sales Insights & Forecasting Pro',
@@ -192,6 +106,7 @@ TRANSLATIONS = {
         'forecasting': 'Simple Forecasting (Trend)',
         'forecast_column': 'Select numeric column to forecast',
         'forecast_periods': 'Forecast Periods (steps)',
+        'forecast_frequency': 'Forecast Frequency', # NEW
         'run_forecast': 'Run Forecast',
         'insights': 'Automated Insights',
         'missing_values': 'Missing Values by Column',
@@ -217,6 +132,7 @@ TRANSLATIONS = {
         'plot_warn': 'Please select at least one Y-Axis column.',
         'forecast_warn': 'Please select a numeric column to forecast.',
         'forecast_no_date': 'No date column selected. Forecasting on data index.',
+        'no_date_column': '-- No Date Column Selected --', # NEW
         'forecast_no_data': 'Not enough data to forecast (need at least 2 data points).',
         'forecast_fail': 'Forecasting failed',
         'forecast_table': 'Forecast Table',
@@ -246,7 +162,13 @@ TRANSLATIONS = {
         'insight_top_branch': 'Top Branch',
         'insight_top_salesman': 'Top Salesman',
         'insight_top_product': 'Top Product',
-        
+        # AUTH TRANSLATIONS
+        'login': 'Login',
+        'username': 'Username',
+        'password': 'Password',
+        'logout': 'Logout',
+        'login_title': 'Please login to access the Sales Dashboard',
+        'login_error': 'Incorrect username or password. Please try again.',
     },
     'ar': {
         'title': 'تحليلات المبيعات والتنبؤ الاحترافي',
@@ -275,6 +197,7 @@ TRANSLATIONS = {
         'forecasting': 'التنبؤ البسيط (الاتجاه)',
         'forecast_column': 'اختر العمود الرقمي للتنبؤ',
         'forecast_periods': 'فترات التنبؤ (خطوات)',
+        'forecast_frequency': 'تردد التنبؤ', # NEW
         'run_forecast': 'تشغيل التنبؤ',
         'insights': 'رؤى تلقائية',
         'missing_values': 'القيم المفقودة حسب العمود',
@@ -300,6 +223,7 @@ TRANSLATIONS = {
         'plot_warn': 'يرجى اختيار عمود واحد على الأقل للمحور الصادي.',
         'forecast_warn': 'يرجى اختيار عمود رقمي للتنبؤ.',
         'forecast_no_date': 'لم يتم تحديد عمود تاريخ. سيتم التنبؤ بناءً على تسلسل البيانات.',
+        'no_date_column': '-- لم يتم تحديد عمود تاريخ --', # NEW
         'forecast_no_data': 'لا توجد بيانات كافية للتنبؤ (تحتاج نقطتي بيانات على الأقل).',
         'forecast_fail': 'فشل التنبؤ',
         'forecast_table': 'جدول التنبؤ',
@@ -329,7 +253,7 @@ TRANSLATIONS = {
         'insight_top_branch': 'أفضل فرع',
         'insight_top_salesman': 'أفضل بائع',
         'insight_top_product': 'أفضل منتج',
-        # NEW AUTH TRANSLATIONS
+        # AUTH TRANSLATIONS
         'login': 'تسجيل الدخول',
         'username': 'اسم المستخدم',
         'password': 'كلمة المرور',
@@ -503,6 +427,29 @@ def load_sample_data():
 # ================================================
 
 @st.cache_data
+def get_date_cols(df: pd.DataFrame) -> List[str]:
+    """Finds all datetime-like columns and date-like object columns."""
+    date_cols = [col for col in df.columns if pd.api.types.is_datetime64_any_dtype(df[col])]
+    
+    # Also try to find object columns that look like dates
+    for col in df.select_dtypes(include=['object']).columns:
+        if col in date_cols:
+            continue
+        # Test the first 10 non-null values
+        try:
+            non_null_samples = df[col].dropna().iloc[:10]
+            if non_null_samples.empty:
+                continue
+            pd.to_datetime(non_null_samples, errors='raise')
+            date_cols.append(col)
+        except Exception:
+            pass
+    
+    if not date_cols:
+        return [t('no_date_column')]
+    return [t('no_date_column')] + date_cols
+
+@st.cache_data
 def grand_totals(df: pd.DataFrame) -> Tuple[Dict[str, float], float]:
     """Calculates totals for all numeric columns."""
     numeric = df.select_dtypes(include=[np.number])
@@ -517,6 +464,8 @@ def stats_summary(df: pd.DataFrame) -> pd.DataFrame:
     if numeric.empty:
         return pd.DataFrame()
     summary = numeric.agg(['count', 'mean', 'median', 'max', 'min', 'std']).transpose()
+    # Format for display
+    summary = summary.applymap(lambda x: f'{x:,.2f}' if isinstance(x, (int, float)) else x)
     return summary
 
 @st.cache_data
@@ -537,25 +486,40 @@ def generate_pivot(df: pd.DataFrame, rows: List[str], cols: List[str], values: O
         st.error(f"Pivot error: {e}")
         return None
 
-def run_forecast(df: pd.DataFrame, date_col: Optional[str], fc_col: str, fc_periods: int):
+def run_forecast(df: pd.DataFrame, date_col: Optional[str], fc_col: str, fc_periods: int, fc_freq: str):
     """
     Runs and plots a simple polynomial forecast.
+    UPDATED to accept fc_freq ('Monthly' or 'Weekly').
     """
     if not fc_col:
         st.warning(t('forecast_warn'))
         return
 
     try:
-        if date_col:
-            # --- Forecasting with a Date Column ---
+        # --- MODIFIED: Forecasting with a Date Column ---
+        if date_col and date_col != t('no_date_column'):
+            
+            # Map user-friendly frequency name to pandas offset alias
+            freq_map = {'Monthly': 'MS', 'Weekly': 'W-MON'} # MS=Month Start, W-MON=Week starting Monday
+            freq = freq_map.get(fc_freq, 'MS')
+
             tmp = df[[date_col, fc_col]].copy()
             tmp[date_col] = pd.to_datetime(tmp[date_col], errors='coerce')
             tmp = tmp.dropna(subset=[date_col, fc_col])
-            tmp = tmp.groupby(date_col, as_index=False)[fc_col].mean().sort_values(date_col)
+            
+            if tmp.empty:
+                st.warning(t('forecast_no_data'))
+                return
+
+            # NEW Resampling logic
             tmp_series = tmp.set_index(date_col)[fc_col]
+            # Resample by the chosen frequency, summing up the values
+            tmp_series = tmp_series.resample(freq).sum()
+            # Drop periods with no sales, as they don't help the trend
+            tmp_series = tmp_series[tmp_series > 0] 
+            
             tmp_series = tmp_series[~tmp_series.index.duplicated(keep='first')]
             
-            # UPDATED: Allow forecast for 2 points (for a straight line)
             if tmp_series.shape[0] < 2:
                 st.warning(t('forecast_no_data'))
                 return
@@ -574,13 +538,8 @@ def run_forecast(df: pd.DataFrame, date_col: Optional[str], fc_col: str, fc_peri
             resid_std = np.nanstd(resid)
             ci = 1.96 * resid_std
 
-            try:
-                freq = pd.infer_freq(tmp_series.index)
-                if freq is None: freq = 'D'
-            except Exception:
-                freq = 'D'
-            
             last_date = tmp_series.index.max()
+            # Use the *explicit* freq, not inferred
             future_index = pd.date_range(start=last_date, periods=int(fc_periods) + 1, freq=freq)[1:]
 
             future_x = np.arange(n, n + int(fc_periods))
@@ -595,7 +554,7 @@ def run_forecast(df: pd.DataFrame, date_col: Optional[str], fc_col: str, fc_peri
             
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=tmp_series.index, y=tmp_series.values,
-                                     mode='lines', name=t('actual'), line=dict(color='blue')))
+                                     mode='lines+markers', name=t('actual'), line=dict(color='blue')))
             fig.add_trace(go.Scatter(x=forecast_df[date_col], y=forecast_df['forecast'],
                                      mode='lines', name=t('forecast'), line=dict(dash='dash', color='red', width=3)))
             fig.add_trace(go.Scatter(
@@ -605,24 +564,30 @@ def run_forecast(df: pd.DataFrame, date_col: Optional[str], fc_col: str, fc_peri
                 line=dict(color='rgba(255,255,255,0)'),
                 hoverinfo="skip", showlegend=True, name=t('confidence')
             ))
-            fig.update_layout(title=f"{fc_col} - {t('forecast')}", xaxis_title=date_col, yaxis_title=fc_col)
+            fig.update_layout(title=f"{fc_col} - {fc_freq} {t('forecast')}", xaxis_title=date_col, yaxis_title=fc_col)
             st.plotly_chart(fig, use_container_width=True)
             st.subheader(t('forecast_table'))
-            st.dataframe(forecast_df.reset_index(drop=True))
+            
+            # Format forecast table for display
+            display_fc_df = forecast_df.copy()
+            display_fc_df[date_col] = display_fc_df[date_col].dt.strftime('%Y-%m-%d')
+            for col in ['forecast', 'lower_band', 'upper_band']:
+                display_fc_df[col] = display_fc_df[col].map('{:,.2f}'.format)
+                
+            st.dataframe(display_fc_df.reset_index(drop=True))
 
         else:
-            # --- No date column: forecast on index ---
+            # --- No date column: forecast on index (Original logic) ---
             st.info(t('forecast_no_date'))
             series = df[fc_col].dropna().astype(float)
-            # UPDATED: Allow forecast for 2 points (for a straight line)
             if series.shape[0] < 2:
                 st.warning(t('forecast_no_data'))
                 return
 
             n = series.shape[0]
-            deg = 1 # Always use degree 1 (straight line) if n < 6
+            deg = 1 
             if n >= 6:
-                deg = 2 # Use degree 2 (curve) if 6 or more points
+                deg = 2
                 
             x = np.arange(n)
             coeffs = np.polyfit(x, series.values, deg)
@@ -654,6 +619,10 @@ def run_forecast(df: pd.DataFrame, date_col: Optional[str], fc_col: str, fc_peri
                 hoverinfo="skip", showlegend=True, name=t('confidence')
             ))
             st.plotly_chart(fig, use_container_width=True)
+            
+            # Format forecast table
+            for col in ['forecast', 'lower_band', 'upper_band']:
+                forecast_df[col] = forecast_df[col].map('{:,.2f}'.format)
             st.dataframe(forecast_df)
 
     except Exception as e:
@@ -716,12 +685,12 @@ def generate_pdf_report(df: pd.DataFrame, stats: pd.DataFrame, insights: List[st
         stats_df_reset = stats.reset_index().rename(columns={'index': t('stat_metric')})
         stats_data = [stats_df_reset.columns.to_list()] + stats_df_reset.values.tolist()
         
-        # Format numbers in data
+        # Format numbers in data (already formatted in stats_summary, but good to double-check)
         for i in range(1, len(stats_data)):
             for j in range(1, len(stats_data[i])):
                 try:
-                    stats_data[i][j] = f"{stats_data[i][j]:.2f}"
-                except (TypeError, ValueError):
+                    stats_data[i][j] = f"{float(stats_data[i][j].replace(',', '')):.2f}"
+                except (TypeError, ValueError, AttributeError):
                     pass
         
         t_style = TableStyle([
@@ -779,7 +748,7 @@ def get_automated_insights(df: pd.DataFrame) -> Tuple[List[Tuple[str, str, str]]
     """Generates a list of textual insights based on column names."""
     # Insights is now a list of tuples (emoji, key, value)
     insights: List[Tuple[str, str, str]] = []
-    insights_dict = {}
+    insights_dict = {} # For PDF/HTML export
 
     def safe_find(df: pd.DataFrame, possible_names: List[str]) -> Optional[str]:
         for name in possible_names:
@@ -789,483 +758,458 @@ def get_automated_insights(df: pd.DataFrame) -> Tuple[List[Tuple[str, str, str]]
         return None
 
     # Detect key columns
-    revenue_col = safe_find(df, ["القيمة بعد الضريبة", "صافي المبيعات", "الإيرادات", "revenue", "total revenue", "sales", "قيمة بعد الضريبة و الخصم"])
-    discount_col = safe_find(df, ["الخصومات", "خصم", "discount", "total discount"])
-    tax_col = safe_find(df, ["الضريبة", "ضريبة الصنف", "tax", "total tax"])
-    qty_col = safe_find(df, ["الكمية", "كمية كرتون", "quantity", "total quantity"])
-    branch_col = safe_find(df, ["الفرع", "branch"])
-    salesman_col = safe_find(df, ["اسم المندوب", "مندوب", "salesman", "seller", "بائع"])
-    product_col = safe_find(df, ["اسم الصنف", "الصنف", "product", "category"])
+    revenue_col = safe_find(df, ["القيمة بعد الخصم", "revenue", "sales", "total", "net sales", "القيمة"])
+    discounts_col = safe_find(df, ["الخصومات", "discounts", "discount"])
+    tax_col = safe_find(df, ["الضريبة", "tax", "vat"])
+    qty_col = safe_find(df, ["الكميات", "الكمية", "quantity", "qty"])
+    branch_col = safe_find(df, ["الفرع", "branch", "store"])
+    salesman_col = safe_find(df, ["البائع", "salesman", "employee"])
+    product_col = safe_find(df, ["الصنف", "product", "item name", "item"])
 
-    # Calculate totals
+    # --- Generate Insights ---
     if revenue_col and pd.api.types.is_numeric_dtype(df[revenue_col]):
-        total_revenue = df[revenue_col].sum()
-        insights_dict['insight_total_revenue'] = f"{total_revenue:,.2f}"
-        insights.append(('💰', 'insight_total_revenue', f"{total_revenue:,.2f}"))
-    if discount_col and pd.api.types.is_numeric_dtype(df[discount_col]):
-        total_discount = df[discount_col].sum()
-        insights_dict['insight_total_discounts'] = f"{total_discount:,.2f}"
-        insights.append(('🎯', 'insight_total_discounts', f"{total_discount:,.2f}"))
+        rev_total = df[revenue_col].sum()
+        insights.append(('💰', t('insight_total_revenue'), f"{rev_total:,.2f}"))
+        insights_dict['Total Revenue'] = f"{rev_total:,.2f}"
+
+    if discounts_col and pd.api.types.is_numeric_dtype(df[discounts_col]):
+        disc_total = df[discounts_col].sum()
+        insights.append(('🏷️', t('insight_total_discounts'), f"{disc_total:,.2f}"))
+        insights_dict['Total Discounts'] = f"{disc_total:,.2f}"
+
     if tax_col and pd.api.types.is_numeric_dtype(df[tax_col]):
-        total_tax = df[tax_col].sum()
-        insights_dict['insight_total_tax'] = f"{total_tax:,.2f}"
-        insights.append(('💸', 'insight_total_tax', f"{total_tax:,.2f}"))
+        tax_total = df[tax_col].sum()
+        insights.append(('🧾', t('insight_total_tax'), f"{tax_total:,.2f}"))
+        insights_dict['Total Tax'] = f"{tax_total:,.2f}"
+
     if qty_col and pd.api.types.is_numeric_dtype(df[qty_col]):
-        total_qty = df[qty_col].sum()
-        insights_dict['insight_total_qty'] = f"{total_qty:,.2f}"
-        insights.append(('📦', 'insight_total_qty', f"{total_qty:,.2f}"))
+        qty_total = df[qty_col].sum()
+        insights.append(('📦', t('insight_total_qty'), f"{qty_total:,.0f}"))
+        insights_dict['Total Quantity'] = f"{qty_total:,.0f}"
 
-    # Find top categories
-    if branch_col and revenue_col and pd.api.types.is_numeric_dtype(df[revenue_col]):
+    if branch_col and revenue_col:
         top_branch = df.groupby(branch_col)[revenue_col].sum().idxmax()
-        insights_dict['insight_top_branch'] = str(top_branch)
-        insights.append(('🏢', 'insight_top_branch', str(top_branch)))
-    if salesman_col and revenue_col and pd.api.types.is_numeric_dtype(df[revenue_col]):
+        insights.append(('🏢', t('insight_top_branch'), str(top_branch)))
+        insights_dict['Top Branch'] = str(top_branch)
+
+    if salesman_col and revenue_col:
         top_salesman = df.groupby(salesman_col)[revenue_col].sum().idxmax()
-        insights_dict['insight_top_salesman'] = str(top_salesman)
-        insights.append(('🧍‍♂️', 'insight_top_salesman', str(top_salesman)))
-    if product_col and revenue_col and pd.api.types.is_numeric_dtype(df[revenue_col]):
+        insights.append(('🧑‍💼', t('insight_top_salesman'), str(top_salesman)))
+        insights_dict['Top Salesman'] = str(top_salesman)
+
+    if product_col and revenue_col:
         top_product = df.groupby(product_col)[revenue_col].sum().idxmax()
-        insights_dict['insight_top_product'] = str(top_product)
-        insights.append(('🛒', 'insight_top_product', str(top_product)))
-
-    return insights, insights_dict, revenue_col, branch_col
+        insights.append(('🛍️', t('insight_top_product'), str(top_product)))
+        insights_dict['Top Product'] = str(top_product)
+        
+    return insights, insights_dict, revenue_col, qty_col
 
 # ================================================
-# 7. DYNAMIC PLOTTING FUNCTION (FOR DASHBOARD)
+# 7. MAIN APPLICATION UI BUILDER
 # ================================================
 
-def plot_dynamic_chart(data: pd.DataFrame, chart_type: str, x_axis: Optional[str], y_axes: List[str]):
-    """Helper function to generate plots for the interactive dashboard."""
-    if not y_axes and chart_type not in ['Heatmap']:
-        st.warning(t('plot_warn'))
-        return
+def build_main_app():
+    """
+    This function builds the entire UI for the main application
+    after the user has been authenticated.
+    """
     
-    try:
-        if chart_type in ['Line', 'Bar', 'Area', 'Scatter']:
-            x_arg = x_axis if x_axis else None
-            if x_arg:
-                df_melted = data.melt(id_vars=[x_arg], value_vars=y_axes, var_name='Metric', value_name='Value')
-            else:
-                df_melted = data[y_axes].melt(var_name='Metric', value_name='Value')
-                
-            if chart_type == 'Line':
-                fig = px.line(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart")
-            elif chart_type == 'Bar':
-                fig = px.bar(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart", barmode='group')
-            elif chart_type == 'Area':
-                fig = px.area(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart")
-            elif chart_type == 'Scatter':
-                fig = px.scatter(df_melted, x=x_arg, y='Value', color='Metric', title=f"{chart_type} Chart")
-            st.plotly_chart(fig, use_container_width=True)
+    df = st.session_state.get('df')
+    
+    # --- 1. Sidebar ---
+    with st.sidebar:
+        st.title(f"👋 {st.session_state.get('login_user', 'User')}")
         
-        elif chart_type == 'Box':
-            fig = px.box(data[y_axes], y=y_axes)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        elif chart_type == 'Pie':
-            names_col = x_axis if x_axis else (data.columns[0] if not data.empty else None)
-            if names_col and y_axes:
-                fig = px.pie(data, names=names_col, values=y_axes[0], title=f"Pie Chart: {y_axes[0]}")
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("Please select an X-Axis (for labels) and at least one Y-Axis (for values).")
-        
-        elif chart_type == 'Heatmap':
-            num_df = data.select_dtypes(include=[np.number])
-            if num_df.shape[1] < 2:
-                st.warning(t('no_corr'))
-            else:
-                corr = num_df.corr()
-                fig = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Heatmap")
-                st.plotly_chart(fig, use_container_width=True)
-
-    except Exception as e:
-        st.error(f"Could not plot: {e}")
-
-# ================================================
-# 8. AUTHENTICATION & APP CONTENT
-# ================================================
-
-def login_form():
-    """Displays the login form."""
-    st.image("https://placehold.co/600x100/1e293b/FFFFFF?text=SALES+INSIGHTS", width=400)
-    st.title(t('login_title'))
-
-    # Center the login form
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        with st.form("login_form", clear_on_submit=False):
-            username = st.text_input(t('username'), key="login_user_input")
-            password = st.text_input(t('password'), type="password", key="login_pass_input")
-            submitted = st.form_submit_button(t('login'), type="primary")
-
-            if submitted:
-                if username == CREDENTIALS['username'] and password == CREDENTIALS['password']:
-                    st.session_state['authenticated'] = True
-                    st.session_state['login_user'] = username # Store username
-                    st.rerun()
-                else:
-                    st.error(t('login_error'))
-    
-    # Display the footer even when logged out
-    st.markdown(
-        """
-        <hr style="margin-top:50px; margin-bottom:10px; border:1px solid #444;">
-        <div style='text-align: center; color: #aaa; font-size: 14px;'>
-            {t_footer_credit} <b style='color:#00BFFF;'>Sameh Sobhy Attia</b> (Pro Version by Gemini)
-        </div>
-        """.replace('{t_footer_credit}', t('footer_credit')),
-        unsafe_allow_html=True
-    )
-
-
-def app_content():
-    """Contains all the original application logic (tabs, analysis, etc.)."""
-    
-    # Header with Logout and Language/Theme toggle
-    c_header_1, c_header_2, c_header_3, c_header_4 = st.columns([1, 1, 1, 1])
-    
-    with c_header_1:
-        st.title(t('title'))
-    
-    with c_header_2:
-        pass # Placeholder for layout
-        
-    with c_header_3:
         # Language Selector
-        if st.session_state['lang'] == 'en':
-            selected_lang = st.selectbox(t('language'), options=['English', 'العربية'], index=0, key='lang_select')
-        else:
-            selected_lang = st.selectbox(t('language'), options=['English', 'العربية'], index=1, key='lang_select')
+        st.selectbox(
+            t('language'), ('en', 'ar'),
+            key='lang',
+            format_func=lambda x: 'English' if x == 'en' else 'العربية'
+        )
+        
+        st.divider()
+        
+        # File Uploader
+        st.header(t('upload'))
+        uploaded_file = st.file_uploader(
+            t('upload_prompt'),
+            type=['csv', 'xls', 'xlsx', 'pdf', 'html', 'htm'],
+            label_visibility='collapsed'
+        )
+        
+        if uploaded_file:
+            # When a new file is uploaded, process it
+            load_data(uploaded_file)
+        
+        if st.button(t('load_sample')):
+            load_sample_data()
             
-        if selected_lang == 'العربية' and st.session_state['lang'] != 'ar':
-            st.session_state['lang'] = 'ar'
-            st.rerun()
-        elif selected_lang == 'English' and st.session_state['lang'] != 'en':
-            st.session_state['lang'] = 'en'
-            st.rerun()
+        st.divider()
+
+        # Data Configuration (only if data is loaded)
+        if df is not None:
+            st.header(t('config'))
+            all_cols = [str(c) for c in df.columns]
+            numeric_cols = [str(c) for c in df.select_dtypes(include=[np.number]).columns]
             
-    with c_header_4:
+            # KPI Column Selector
+            st.multiselect(
+                t('kpi_selection'),
+                numeric_cols,
+                key='kpi_cols'
+            )
+            
+            # Date Column Selector
+            date_col_options = get_date_cols(df)
+            st.selectbox(
+                t('date_column'),
+                date_col_options,
+                key='date_col'
+            )
+        
+        st.divider()
+        
         # Logout Button
         if st.button(t('logout')):
             st.session_state['authenticated'] = False
             st.session_state['login_user'] = None
-            st.success("Logged out successfully!")
+            st.session_state['df'] = None
+            st.session_state['file_name'] = None
             st.rerun()
-            
-    # Check current language for RTL layout (Arabic)
-    if st.session_state['lang'] == 'ar':
-        st.markdown("<style>body { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
-        # Apply RTL to selectboxes and inputs within Streamlit components (best effort)
-        st.markdown("""
-        <style>
-        .stSelectbox, .stTextInput, .stMultiSelect {
-            direction: rtl;
-        }
-        </style>
-        """, unsafe_allow_html=True)
 
-    df = st.session_state.get('df')
+    # --- 2. Main Content Area ---
+    st.title(t('title'))
 
-    # --- Data Loading Controls ---
-    with st.sidebar:
-        st.markdown("---")
-        
-        uploaded_file = st.file_uploader(t('upload'), type=['xlsx', 'xls', 'csv', 'pdf', 'html', 'htm'])
-        if uploaded_file:
-            # Check if it's a new file before reloading
-            if uploaded_file.name != st.session_state.get('file_name'):
-                with st.spinner('Loading data...'):
-                    load_data(uploaded_file)
-        
-        if st.button(t('load_sample')):
-            with st.spinner('Loading sample data...'):
-                load_sample_data()
-        
     if df is None:
-        st.info(f"ℹ️ {t('upload_prompt')}")
+        st.info(t('upload_prompt'))
         return
 
-    # --- Data Loaded - Show Tabs ---
-    
-    if st.checkbox(t('show_data')):
-        # Calculate height: (rows + 1 header) * 35px/row + 3px extra
-        table_height = (len(df) + 1) * 35 + 3
-        # Set a max height to avoid crashing the browser on huge datasets
-        if table_height > 1000:
-            table_height = 1000
-        st.dataframe(df, use_container_width=True, height=table_height)
-
-    all_cols = df.columns.tolist()
-    default_numeric = [c for c in all_cols if pd.api.types.is_numeric_dtype(df[c])]
-    default_date = next((c for c in all_cols if 'date' in str(c).lower() or 'تاريخ' in str(c).lower()), None)
-    date_col_index = all_cols.index(default_date) + 1 if default_date else 0
-    
-    # --- Tabbed Interface ---
-    tab_kpi, tab_dashboard, tab_pivot, tab_charts, tab_forecast, tab_insights, tab_export = st.tabs([
-        f"📊 {t('kpi_tab')}",
-        f"✨ {t('dashboard_tab')}",
-        f"📋 {t('pivot_tab')}",
-        f"📈 {t('charts_tab')}",
-        f"🔮 {t('forecast_tab')}",
-        f"💡 {t('insights_tab')}",
-        f"📄 {t('export_tab')}"
+    # If data is loaded, show tabs
+    tab_kpi, tab_dash, tab_pivot, tab_charts, tab_forecast, tab_insights, tab_export = st.tabs([
+        t('kpi_tab'),
+        t('dashboard_tab'),
+        t('pivot_tab'),
+        t('charts_tab'),
+        t('forecast_tab'),
+        t('insights_tab'),
+        t('export_tab')
     ])
-
-    # --- 1. KPI & Stats Tab ---
+    
+    # Get selected columns from session state
+    kpi_cols = st.session_state.get('kpi_cols', [])
+    date_col = st.session_state.get('date_col', t('no_date_column'))
+    all_cols = [str(c) for c in df.columns]
+    numeric_cols = [str(c) for c in df.select_dtypes(include=[np.number]).columns]
+    
+    # --- Tab 1: KPIs & Stats ---
     with tab_kpi:
-        st.subheader(t('config'))
-        c1, c2 = st.columns(2)
-        with c1:
-            # This selection is used by other tabs (Forecast)
-            date_col = st.selectbox(t('date_column'), options=[''] + all_cols, index=date_col_index, key='date_col_selector')
-            date_col = date_col if date_col else None
-        with c2:
-            numeric_cols = st.multiselect(t('kpi_selection'), options=all_cols, default=default_numeric[:3])
-        
-        st.markdown("---")
-        
-        st.subheader(f"🔹 {t('total_everything')}")
-        # Use cached function
-        totals_dict_all, grand_all = grand_totals(df)
-        kpi_cols_display = list(totals_dict_all.keys())[:5] # Show up to 5
-        kpi_cols = st.columns(len(kpi_cols_display) if kpi_cols_display else 1)
-        for i, k in enumerate(kpi_cols_display):
-            kpi_cols[i].metric(k, f"{totals_dict_all[k]:,.2f}")
-        st.metric(t('grand_total'), f"{grand_all:,.2f}")
-        
-        st.markdown("---")
-        
-        st.subheader(f"🔸 {t('selected_kpis')}")
-        if numeric_cols:
-            selected_df = df[numeric_cols].select_dtypes(include=[np.number])
-            if not selected_df.empty:
-                # This is a fast operation, no need to cache
-                totals_dict = selected_df.sum(numeric_only=True).to_dict()
-                grand_selected = selected_df.sum(numeric_only=True).sum()
-                
-                kpi_cols_sel = st.columns(len(totals_dict) if totals_dict else 1)
-                for i, (col, val) in enumerate(totals_dict.items()):
-                    kpi_cols_sel[i].metric(col, f"{val:,.2f}")
-                st.metric(t('grand_total'), f"{grand_selected:,.2f}")
-            else:
-                st.info(t('no_kpis_selected'))
+        st.subheader(t('selected_kpis'))
+        if kpi_cols:
+            kpi_df = df[kpi_cols]
+            kpi_totals = kpi_df.sum().to_frame(name=t('stat_value'))
+            kpi_totals[t('stat_value')] = kpi_totals[t('stat_value')].map('{:,.2f}'.format)
+            
+            cols = st.columns(len(kpi_cols))
+            for i, col_name in enumerate(kpi_cols):
+                cols[i].metric(col_name, f"{kpi_df[col_name].sum():,.2f}")
+            
+            st.dataframe(kpi_totals, use_container_width=True)
         else:
             st.info(t('no_kpis_selected'))
-
-        st.markdown("---")
+            
+        st.divider()
+        
         st.subheader(t('stats_summary'))
-        # Use cached function
-        stat_df = stats_summary(df)
-        if not stat_df.empty:
-            # UPDATED: Rename columns using translations
-            stat_df = stat_df.rename(columns={
-                'count': t('stat_count'),
-                'mean': t('stat_mean'), # This becomes 'Average'
-                'median': t('stat_median'),
-                'max': t('stat_max'),
-                'min': t('stat_min'),
-                'std': t('stat_std')
-            })
-            st.dataframe(stat_df.style.format("{:,.2f}"))
+        stats_df = stats_summary(df)
+        if stats_df.empty:
+            st.warning(t('no_numeric_stats'))
         else:
-            st.info(t('no_numeric_stats'))
+            stats_df_display = stats_df.copy()
+            # Rename columns for display
+            stats_df_display.columns = [
+                t('stat_count'), t('stat_mean'), t('stat_median'),
+                t('stat_max'), t('stat_min'), t('stat_std')
+            ]
+            stats_df_display.index.name = t('stat_metric')
+            st.dataframe(stats_df_display, use_container_width=True)
 
-    # --- 2. Interactive Dashboard Tab ---
-    with tab_dashboard:
-        st.subheader(t('dashboard_tab'))
+    # --- Tab 2: Interactive Dashboard ---
+    with tab_dash:
         st.info(t('dashboard_info'))
+        
+        # Use AgGrid for row selection
+        from st_aggrid import AgGrid, GridUpdateMode, GridOptionsBuilder
 
-        # --- Dashboard Controls ---
-        ch1, ch2, ch3 = st.columns(3)
-        with ch1:
-            dash_chart_type = st.selectbox(t('chart_type'), options=['Line', 'Bar', 'Area', 'Scatter', 'Box', 'Pie'], key='dash_chart_type')
-        with ch2:
-            dash_x_axis = st.selectbox(t('x_axis'), options=[''] + all_cols, index=date_col_index, key='dash_x')
-        with ch3:
-            dash_y_axes = st.multiselect(t('y_axis'), options=all_cols, default=default_numeric[:1], key='dash_y')
+        gb = GridOptionsBuilder.from_dataframe(df)
+        gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren=True)
+        gridOptions = gb.build()
 
-        # --- Interactive Dataframe ---
-        st.dataframe(df, on_select="rerun", selection_mode="multi-row", key="dashboard_selector", use_container_width=True, height=300)
+        grid_response = AgGrid(
+            df,
+            gridOptions=gridOptions,
+            data_return_mode='AS_INPUT',
+            update_mode=GridUpdateMode.MODEL_CHANGED,
+            fit_columns_on_grid_load=True,
+            allow_unsafe_jscode=True,  # Set it to True to allow jsfunction to be injected
+            enable_enterprise_modules=False,
+            height=400,
+            width='100%',
+            reload_data=True
+        )
+        
+        selected_rows = grid_response['selected_rows']
+        selected_df = pd.DataFrame(selected_rows)
 
-        # --- Check selection and plot ---
-        selection_state = st.session_state.get("dashboard_selector", {})
-        selected_rows_indices = selection_state.get("selection", {}).get("rows", [])
-
-        if selected_rows_indices:
-            selected_df = df.iloc[selected_rows_indices]
-            st.subheader(f"{t('plot_selection_title')} ({len(selected_rows_indices)} {t('rows')})")
-            plot_dynamic_chart(selected_df, dash_chart_type, dash_x_axis, dash_y_axes)
+        if not selected_df.empty:
+            st.subheader(t('plot_selection_title'))
+            # Use the same columns as the full data for consistency
+            selected_df = selected_df[df.columns] 
         else:
             st.subheader(t('plot_all_title'))
-            plot_dynamic_chart(df, dash_chart_type, dash_x_axis, dash_y_axes)
+            selected_df = df # Plot all data if no selection
 
+        # Dashboard plotting
+        if not selected_df.empty:
+            plot_cols = st.columns(2)
+            
+            # Plot 1: Bar chart (if kpis selected)
+            if kpi_cols and date_col != t('no_date_column'):
+                try:
+                    plot_df = selected_df.groupby(date_col)[kpi_cols].sum().reset_index()
+                    fig = px.bar(plot_df, x=date_col, y=kpi_cols, title=f"KPIs over Time", barmode='group')
+                    plot_cols[0].plotly_chart(fig, use_container_width=True)
+                except Exception:
+                    pass # Fail silently if grouping fails
+            elif kpi_cols:
+                 try:
+                    plot_df = selected_df[kpi_cols].sum().reset_index()
+                    plot_df.columns = ['KPI', 'Total']
+                    fig = px.bar(plot_df, x='KPI', y='Total', title="KPI Totals")
+                    plot_cols[0].plotly_chart(fig, use_container_width=True)
+                 except Exception:
+                    pass
+            
+            # Plot 2: Pie chart (if kpis and a category)
+            cat_cols = [c for c in all_cols if c not in numeric_cols and c != date_col and df[c].nunique() < 20]
+            if kpi_cols and cat_cols:
+                try:
+                    pie_cat = cat_cols[0]
+                    pie_kpi = kpi_cols[0]
+                    plot_df = selected_df.groupby(pie_cat)[pie_kpi].sum().reset_index()
+                    fig = px.pie(plot_df, names=pie_cat, values=pie_kpi, title=f"{pie_kpi} by {pie_cat}")
+                    plot_cols[1].plotly_chart(fig, use_container_width=True)
+                except Exception:
+                    pass
 
-    # --- 3. Pivot Table Tab ---
+    # --- Tab 3: Pivot Table ---
     with tab_pivot:
         st.subheader(t('pivot_config'))
-        p1, p2 = st.columns(2)
-        with p1:
-            pivot_rows = st.multiselect(t('row_field'), options=all_cols, default=all_cols[0] if all_cols else [], key='pivot_rows')
-            pivot_cols = st.multiselect(t('col_field'), options=all_cols, key='pivot_cols')
-        with p2:
-            pivot_value = st.selectbox(t('value_col'), options=[''] + all_cols, index=0, key='pivot_val')
-            pivot_agg = st.selectbox(t('agg_type'), options=['sum', 'mean', 'median', 'count', 'min', 'max', 'std'], index=0, key='pivot_agg')
         
-        if st.button(t('generate_pivot')):
-            with st.spinner('Generating pivot table...'):
-                pivot_value_arg = pivot_value if pivot_value else (all_cols[0] if all_cols else None)
-                pivot_result = generate_pivot(df, pivot_rows, pivot_cols, pivot_value_arg, pivot_agg)
-                if pivot_result is not None:
-                    st.dataframe(pivot_result)
-                    
-                    # Download button for pivot table
-                    excel_bytes = df_to_excel_bytes({'PivotTable': pivot_result})
-                    st.download_button(
-                        label=t('download_pivot'),
-                        data=excel_bytes,
-                        file_name=f"Pivot_Table_{st.session_state['file_name']}_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
+        pvt_cols = st.columns(3)
+        pvt_rows = pvt_cols[0].multiselect(t('row_field'), all_cols, key='pvt_rows')
+        pvt_cols_field = pvt_cols[1].multiselect(t('col_field'), all_cols, key='pvt_cols')
+        pvt_val = pvt_cols[2].selectbox(t('value_col'), [None] + numeric_cols, key='pvt_val')
+        
+        pvt_agg = st.selectbox(t('agg_type'), ['sum', 'mean', 'median', 'count', 'min', 'max', 'std'], key='pvt_agg')
 
-    # --- 4. Manual Charts Tab ---
+        if st.button(t('generate_pivot')):
+            pivot_df = generate_pivot(df, pvt_rows, pvt_cols_field, pvt_val, pvt_agg)
+            if pivot_df is not None:
+                st.session_state['pivot_df'] = pivot_df
+        
+        if 'pivot_df' in st.session_state and st.session_state['pivot_df'] is not None:
+            st.dataframe(st.session_state['pivot_df'].style.format("{:,.2f}"), use_container_width=True)
+            
+            excel_data = df_to_excel_bytes({'PivotTable': st.session_state['pivot_df']})
+            st.download_button(
+                t('download_pivot'),
+                excel_data,
+                file_name=f"{st.session_state['file_name']}_pivot.xlsx"
+            )
+
+    # --- Tab 4: Manual Charts ---
     with tab_charts:
         st.subheader(t('charts'))
         
-        c_m_1, c_m_2, c_m_3 = st.columns(3)
-        with c_m_1:
-            manual_chart_type = st.selectbox(t('chart_type'), options=['Line', 'Bar', 'Area', 'Scatter', 'Box', 'Pie', 'Heatmap'], key='manual_chart_type')
-        with c_m_2:
-            manual_x_axis = st.selectbox(t('x_axis'), options=[''] + all_cols, index=date_col_index, key='manual_x')
-        with c_m_3:
-            manual_y_axes = st.multiselect(t('y_axis'), options=all_cols, default=default_numeric[:1], key='manual_y')
+        chart_cols = st.columns(3)
+        chart_type = chart_cols[0].selectbox(t('chart_type'), ['bar', 'line', 'area', 'scatter', 'pie'], key='chart_type')
+        chart_x = chart_cols[1].selectbox(t('x_axis'), [None] + all_cols, key='chart_x')
+        chart_y = chart_cols[2].multiselect(t('y_axis'), numeric_cols, key='chart_y')
 
         if st.button(t('plot')):
-            plot_dynamic_chart(df, manual_chart_type, manual_x_axis, manual_y_axes)
+            if not chart_y or not chart_x:
+                st.warning(t('plot_warn'))
+            else:
+                try:
+                    if chart_type == 'bar':
+                        fig = px.bar(df, x=chart_x, y=chart_y, barmode='group')
+                    elif chart_type == 'line':
+                        fig = px.line(df, x=chart_x, y=chart_y)
+                    elif chart_type == 'area':
+                        fig = px.area(df, x=chart_x, y=chart_y)
+                    elif chart_type == 'scatter':
+                        fig = px.scatter(df, x=chart_x, y=chart_y[0]) # Scatter only one Y
+                    elif chart_type == 'pie':
+                        fig = px.pie(df, names=chart_x, values=chart_y[0]) # Pie only one Y
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    st.error(f"Could not plot: {e}")
 
-    # --- 5. Forecasting Tab ---
+    # --- Tab 5: Forecasting ---
     with tab_forecast:
         st.subheader(t('forecasting'))
         
-        c_f_1, c_f_2, c_f_3 = st.columns(3)
-        with c_f_1:
-            # Use the KPI selector for the date column
-            # Note: date_col is defined in the KPI tab scope, so use the key
-            fc_date_col = st.session_state.get('date_col_selector', None)
-            st.markdown(f"**{t('date_column')}:** `{fc_date_col if fc_date_col else 'None'}`")
-            
-        with c_f_2:
-            fc_col = st.selectbox(t('forecast_column'), options=[''] + default_numeric, key='fc_col')
-        with c_f_3:
-            fc_periods = st.number_input(t('forecast_periods'), min_value=1, max_value=36, value=6, step=1, key='fc_periods')
+        fc_cols = st.columns(3)
+        fc_col_select = fc_cols[0].selectbox(t('forecast_column'), [None] + numeric_cols, key='fc_col_select')
+        fc_periods = fc_cols[1].number_input(t('forecast_periods'), min_value=1, max_value=36, value=12, key='fc_periods')
+        
+        # NEW: Frequency Selection
+        is_date_col_selected = (date_col is not None and date_col != t('no_date_column'))
+        fc_freq = fc_cols[2].radio(
+            t('forecast_frequency'),
+            ('Monthly', 'Weekly'),
+            horizontal=True,
+            key='fc_freq',
+            disabled=(not is_date_col_selected) # Disable if no date col
+        )
 
-        if st.button(t('run_forecast'), type="primary"):
-            with st.spinner('Calculating forecast...'):
-                if fc_col:
-                    run_forecast(df, fc_date_col, fc_col, fc_periods)
-                else:
-                    st.warning(t('forecast_warn'))
+        if st.button(t('run_forecast')):
+            if fc_col_select:
+                with st.spinner('Running forecast...'):
+                    run_forecast(
+                        df, 
+                        date_col if is_date_col_selected else None, 
+                        fc_col_select, 
+                        fc_periods, 
+                        fc_freq
+                    )
+            else:
+                st.warning(t('forecast_warn'))
 
-    # --- 6. Data Insights Tab ---
+    # --- Tab 6: Data Insights ---
     with tab_insights:
+        insights_list, insights_dict, rev_col, qty_col = get_automated_insights(df)
+        st.session_state['insights_dict'] = insights_dict
+        st.session_state['insights_list_text'] = [f"{k}: {v}" for e, k, v in insights_list]
+        
+        # --- MODIFIED: Vertical Layout for Insights ---
         st.subheader(t('insights'))
-        
-        insights_list, insights_dict, revenue_col, branch_col = get_automated_insights(df)
-        
-        # Display insights as KPIs
-        if insights_list:
-            cols = st.columns(len(insights_list))
-            for i, (emoji, key, value) in enumerate(insights_list):
-                cols[i].metric(f"{emoji} {t(key)}", value)
+        with st.container(border=True):
+            if not insights_list:
+                st.info("No specific insights could be generated. Check column names (e.g., 'Sales', 'Branch').")
+            else:
+                # Loop and stack them vertically
+                for (emoji, key, value) in insights_list:
+                    st.metric(label=f"{emoji} {key}", value=value)
+                    st.divider()
+                
+                # Hide the last divider
+                st.markdown("""
+                    <style>
+                        div[data-testid='stVerticalBlock'] > 
+                        div[data-testid='stVerticalBlock'] > 
+                        div[data-testid='stVerticalBlock']:last-child > 
+                        div[data-testid='stDivider'] { 
+                            display: none; 
+                        }
+                    </style>
+                """, unsafe_allow_html=True)
 
-        st.markdown("---")
+        st.divider()
         
-        # Missing values
+        # Missing Values
         st.subheader(t('missing_values'))
         missing = df.isnull().sum()
-        missing = missing[missing > 0].sort_values(ascending=False)
-        if not missing.empty:
-            missing_df = pd.DataFrame({t('stat_metric'): missing.index, t('stat_count'): missing.values, '% Missing': (missing.values / len(df)) * 100})
-            fig = px.bar(missing_df, x=t('stat_metric'), y=t('stat_count'), 
-                         title=t('missing_values'), color='% Missing')
-            st.plotly_chart(fig, use_container_width=True)
-            st.dataframe(missing_df, hide_index=True)
+        missing = missing[missing > 0].to_frame(name='Missing Count')
+        if missing.empty:
+            st.success("No missing values found.")
         else:
-            st.info("No missing values found in the dataset.")
+            missing['% Missing'] = (missing['Missing Count'] / df.shape[0]) * 100
+            st.dataframe(missing.style.format({'% Missing': '{:.2f}%'}), use_container_width=True)
 
-        st.markdown("---")
-        
         # Correlation Matrix
         st.subheader(t('correlations'))
-        num_df = df.select_dtypes(include=[np.number])
-        if num_df.shape[1] >= 2:
-            corr = num_df.corr()
-            fig = px.imshow(corr, text_auto=".2f", aspect="auto", title=t('correlations'))
-            st.plotly_chart(fig, use_container_width=True)
+        corr_df = df.select_dtypes(include=[np.number])
+        if corr_df.shape[1] < 2:
+            st.warning(t('no_corr'))
         else:
-            st.info(t('no_corr'))
+            corr_matrix = corr_df.corr()
+            fig = px.imshow(corr_matrix, text_auto=".2f", aspect="auto",
+                            color_continuous_scale='RdYlGn', title="Correlation Heatmap")
+            st.plotly_chart(fig, use_container_width=True)
 
-
-    # --- 7. Export Report Tab ---
+    # --- Tab 7: Export Report ---
     with tab_export:
         st.subheader(t('export_tab'))
         
-        stats = stats_summary(df)
-        insights_list_text = [f"{t(key)}: {value}" for _, key, value in get_automated_insights(df)[0]]
+        export_cols = st.columns(3)
         
-        st.markdown("### Export Options")
-        
-        # Export Excel (Summary)
+        # Excel Export
         excel_sheets = {
-            'Raw Data Preview': df.head(100),
-            'Statistics Summary': stats if not stats.empty else pd.DataFrame(),
-            'Totals': pd.DataFrame([totals_dict_all])
+            'RawData': df,
+            'Statistics': st.session_state.get('stats_df', pd.DataFrame())
         }
+        if 'pivot_df' in st.session_state:
+            excel_sheets['PivotTable'] = st.session_state['pivot_df']
+            
         excel_data = df_to_excel_bytes(excel_sheets)
-        st.download_button(
-            label=t('download_excel'),
-            data=excel_data,
-            file_name=f"Sales_Summary_{st.session_state['file_name']}_{datetime.now().strftime('%Y%m%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-        # Export HTML
-        html_data = create_html_report(df, insights_list_text)
-        st.download_button(
-            label=t('download_html'),
-            data=html_data,
-            file_name=f"Sales_Report_{st.session_state['file_name']}_{datetime.now().strftime('%Y%m%d')}.html",
-            mime="text/html"
+        export_cols[0].download_button(
+            t('download_excel'),
+            excel_data,
+            file_name=f"{st.session_state.get('file_name', 'Report')}.xlsx"
         )
         
-        # Export PDF
-        pdf_data = generate_pdf_report(df, stats, insights_list_text)
-        st.download_button(
-            label=t('download_pdf'),
-            data=pdf_data,
-            file_name=f"Sales_Report_{st.session_state['file_name']}_{datetime.now().strftime('%Y%m%d')}.pdf",
-            mime="application/pdf"
+        # HTML Export
+        html_data = create_html_report(df, st.session_state.get('insights_list_text', []))
+        export_cols[1].download_button(
+            t('download_html'),
+            html_data,
+            file_name=f"{st.session_state.get('file_name', 'Report')}.html"
+        )
+        
+        # PDF Export
+        pdf_data = generate_pdf_report(
+            df, 
+            stats_summary(df), # Re-run for PDF
+            st.session_state.get('insights_list_text', [])
+        )
+        export_cols[2].download_button(
+            t('download_pdf'),
+            pdf_data,
+            file_name=f"{st.session_state.get('file_name', 'Report')}.pdf"
         )
 
+    st.divider()
+    if st.checkbox(t('show_data')):
+        st.dataframe(df, use_container_width=True)
+
+    st.caption(f"{t('footer_credit')} Sameh Sobhy Attia | Refactored by Gemini")
+
 # ================================================
-# 9. MAIN APP EXECUTION FLOW
+# 8. AUTHENTICATION & APP FLOW
 # ================================================
 
-# Main execution flow based on authentication state
-if not st.session_state['authenticated']:
-    login_form()
-else:
-    app_content()
+def build_login_form():
+    """Displays the login form."""
+    st.title(t('title'))
+    st.subheader(t('login_title'))
     
-# Footer (always visible in app content)
-if st.session_state['authenticated']:
-    st.markdown(
-        """
-        <hr style="margin-top:50px; margin-bottom:10px; border:1px solid #444;">
-        <div style='text-align: center; color: #aaa; font-size: 14px;'>
-            {t_footer_credit} <b style='color:#00BFFF;'>Sameh Sobhy Attia</b> (Pro Version by Gemini)
-        </div>
-        """.replace('{t_footer_credit}', t('footer_credit')),
-        unsafe_allow_html=True
-    )
+    with st.form("login_form"):
+        username = st.text_input(t('username'))
+        password = st.text_input(t('password'), type="password")
+        submitted = st.form_submit_button(t('login'))
+        
+        if submitted:
+            if username == CREDENTIALS['username'] and password == CREDENTIALS['password']:
+                st.session_state['authenticated'] = True
+                st.session_state['login_user'] = username
+                st.rerun()
+            else:
+                st.error(t('login_error'))
+
+# --- Main Application Flow ---
+if not st.session_state['authenticated']:
+    build_login_form()
+else:
+    build_main_app()
