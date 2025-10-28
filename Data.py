@@ -57,6 +57,8 @@ if 'file_name' not in st.session_state:
     st.session_state['file_name'] = None
 if 'authenticated' not in st.session_state: # NEW: Authentication flag
     st.session_state['authenticated'] = False # NEW
+if 'login_user' not in st.session_state: # FIX: Initialize login_user to prevent StreamlitAPIException
+    st.session_state['login_user'] = None # FIX
 
 # Hardcoded credentials for demonstration
 CREDENTIALS = {
@@ -380,7 +382,6 @@ def load_data(uploaded_file: BinaryIO):
              st.session_state['df'] = None
              st.session_state['file_name'] = None
         elif df is not None and df.empty:
-             # Warning was already shown by the parsing function
              st.session_state['df'] = None
              st.session_state['file_name'] = None
 
@@ -807,8 +808,8 @@ def login_form():
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         with st.form("login_form", clear_on_submit=False):
-            username = st.text_input(t('username'), key="login_user")
-            password = st.text_input(t('password'), type="password", key="login_pass")
+            username = st.text_input(t('username'), key="login_user_input")
+            password = st.text_input(t('password'), type="password", key="login_pass_input")
             submitted = st.form_submit_button(t('login'), type="primary")
 
             if submitted:
@@ -1180,5 +1181,3 @@ if st.session_state['authenticated']:
         """.replace('{t_footer_credit}', t('footer_credit')),
         unsafe_allow_html=True
     )
-
-
