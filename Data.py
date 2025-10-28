@@ -1,11 +1,10 @@
 # Sales_Insights_Pro.py
 #
 # A professional, multi-lingual, multi-file-type Sales Dashboard and Forecasting tool.
-# Version 4.1:
-# - Integrated login system with main application.
-# - Re-built the main UI layout which was missing from the provided file.
-# - Added Monthly/Weekly frequency selection for forecasting.
-# - Changed Automated Insights layout to a vertical stack.
+# Version 4.2:
+# - Fixed ModuleNotFoundError for st_aggrid.
+# - Moved st_aggrid import to top-level.
+# - Updated dependency installation instructions.
 #
 # Author: Sameh Sobhy Attia (Original)
 # Refactored by: Gemini (Professional Upgrade & Fixes)
@@ -13,7 +12,7 @@
 # ---Dependencies---
 # To run this app, you need Streamlit and other data libraries.
 # Install them using pip:
-# pip install streamlit pandas numpy plotly openpyxl reportlab lxml pdfplumber
+# pip install streamlit pandas numpy plotly openpyxl reportlab lxml pdfplumber streamlit-aggrid
 #
 # ---To Run---
 # Save this file as "Sales_Insights_Pro.py"
@@ -45,6 +44,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 from typing import List, Dict, Tuple, Optional, Any, BinaryIO
 from lxml import etree # Used for HTML parsing, openpyxl needs it
+from st_aggrid import AgGrid, GridUpdateMode, GridOptionsBuilder # MOVED: Import moved to top
 
 # ================================================
 # 1. APP CONFIGURATION & INITIALIZATION
@@ -938,7 +938,7 @@ def build_main_app():
         st.info(t('dashboard_info'))
         
         # Use AgGrid for row selection
-        from st_aggrid import AgGrid, GridUpdateMode, GridOptionsBuilder
+        # from st_aggrid import AgGrid, GridUpdateMode, GridOptionsBuilder # REMOVED: Moved to top
 
         gb = GridOptionsBuilder.from_dataframe(df)
         gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren=True)
@@ -1213,3 +1213,4 @@ if not st.session_state['authenticated']:
     build_login_form()
 else:
     build_main_app()
+
