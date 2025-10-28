@@ -8,13 +8,6 @@ reportlab
 st-aggrid
 scikit-learn
 statsmodels
-
-
-
-
-
-
-
 altair
 seaborn
 xlsxwriter
@@ -22,14 +15,3 @@ pdfplumber
 lxml
 beautifulsoup4
 
-streamlit==1.39.0
-pandas==2.2.2
-numpy==1.26.4
-matplotlib==3.9.2
-plotly==5.24.1
-openpyxl==3.1.5
-scikit-learn==1.5.2
-statsmodels==0.14.3
-reportlab==4.2.5
-st-aggrid==0.3.4
-prophet==1.1.5
