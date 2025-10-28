@@ -69,7 +69,101 @@ CREDENTIALS = {
 # ================================================
 # 2. TRANSLATIONS & LANGUAGE HELPER
 # ================================================
+import streamlit as st
+# Removed 'import time' as the simulated delay is no longer used
 
+# --- 1. Session State Initialization (Safety Check) ---
+# This ensures that these keys exist before the application logic tries to read them.
+if 'authenticated' not in st.session_state:
+    st.session_state['authenticated'] = False
+if 'lang' not in st.session_state:
+    st.session_state['lang'] = 'en'
+    
+# Set up the page configuration early
+st.set_page_config(
+    page_title="Sales Insights Pro",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- 2. Application Views ---
+
+def sales_insights_app():
+    """Displays the secure content (the main sales dashboard) to authenticated users."""
+    st.header("📈 Sales Insights Pro Dashboard")
+    st.markdown("""
+        ### Welcome, Admin!
+        This is the secure area of the **Sales Insights Pro** application. 
+        You now have access to proprietary data and interactive analytics.
+    """)
+    
+    # --- Start of Placeholder Sales Content ---
+    st.success("Data loaded successfully.")
+    
+    st.subheader("Key Performance Indicators (KPIs)")
+    
+    # Show dummy sales metrics
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Revenue", "$1.2M", "5%", delta_color="normal")
+    with col2:
+        st.metric("New Customers", "450", "12%", delta_color="normal")
+    with col3:
+        st.metric("Conversion Rate", "4.8%", "-0.2%", delta_color="inverse")
+
+    st.subheader("Monthly Trend Analysis")
+    st.line_chart({
+        "Jan": 100, "Feb": 120, "Mar": 90, 
+        "Apr": 150, "May": 180, "Jun": 175
+    }, use_container_width=True)
+    
+    # --- End of Placeholder Sales Content ---
+
+    # Optional: Display some session state info
+    st.divider()
+    st.caption(f"Authentication Status: {st.session_state['authenticated']} | Language: {st.session_state['lang']}")
+
+
+def login_form():
+    """Displays the login form using the requested minimal structure."""
+    st.title("🔒 Login Required")
+    st.markdown("Please enter your credentials to access the secure dashboard.")
+    
+    # Simple form structure without extra containers or centering
+    with st.form("login"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        login_btn = st.form_submit_button("Login") # Minimal button text
+
+        if login_btn:
+            # Credentials check (Admin: admin, Pass: 123)
+            if username == "admin" and password == "123":
+                st.session_state['authenticated'] = True
+                st.success("✅ Login successful!")
+                st.rerun() 
+            else:
+                st.error("❌ Incorrect username or password.")
+
+
+# --- 3. Main Application Flow (Conditional Rendering) ---
+
+# Note: Using the existing function name 'sales_insights_app' 
+# in place of 'main_app' as requested by the user's logic flow.
+if not st.session_state['authenticated']:
+    login_form()
+else:
+    # If authenticated, show the main app content
+    sales_insights_app()
+    
+
+# --- 4. Simple Logout Button (In the sidebar for convenience) ---
+# This block is added separately as requested by the user's minimal structure.
+if st.session_state['authenticated']:
+    # Use a simple button structure as requested
+    if st.sidebar.button("Logout"):
+        st.session_state['authenticated'] = False
+        st.info("You have been logged out.")
+        st.rerun()
 TRANSLATIONS = {
     'en': {
         'title': 'Sales Insights & Forecasting Pro',
@@ -152,13 +246,7 @@ TRANSLATIONS = {
         'insight_top_branch': 'Top Branch',
         'insight_top_salesman': 'Top Salesman',
         'insight_top_product': 'Top Product',
-        # NEW AUTH TRANSLATIONS
-        'login': 'Login',
-        'username': 'Username',
-        'password': 'Password',
-        'logout': 'Logout',
-        'login_title': 'Please Log In to Access the Dashboard',
-        'login_error': 'Incorrect username or password. Please try again.',
+        
     },
     'ar': {
         'title': 'تحليلات المبيعات والتنبؤ الاحترافي',
