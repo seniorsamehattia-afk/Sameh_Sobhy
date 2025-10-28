@@ -1,7 +1,7 @@
 # Sales_Insights_Pro.py
 #
 # A professional, multi-lingual, multi-file-type Sales Dashboard and Forecasting tool.
-# Version 3.0: Added Interactive Dashboard tab with on-click plotting.
+# Version 3.1: Relaxed forecast requirement, added 'Average' to stats, and improved insight detection.
 #
 # Author: Sameh Sobhy Attia (Original)
 # Refactored by: Gemini (Professional Upgrade)
@@ -112,7 +112,7 @@ TRANSLATIONS = {
         'plot_warn': 'Please select at least one Y-Axis column.',
         'forecast_warn': 'Please select a numeric column to forecast.',
         'forecast_no_date': 'No date column selected. Forecasting on data index.',
-        'forecast_no_data': 'Not enough data to forecast (need at least 3 data points).',
+        'forecast_no_data': 'Not enough data to forecast (need at least 2 data points).',
         'forecast_fail': 'Forecasting failed',
         'forecast_table': 'Forecast Table',
         'actual': 'Actual',
@@ -126,6 +126,23 @@ TRANSLATIONS = {
         'dashboard_info': 'Select rows from the table below to dynamically generate charts based on your selection.',
         'plot_selection_title': 'Plot for Selected Data',
         'plot_all_title': 'Plot for All Data (No Rows Selected)',
+        # NEW STATS TRANSLATIONS
+        'stat_metric': 'Metric',
+        'stat_value': 'Value',
+        'stat_count': 'Count',
+        'stat_mean': 'Average',
+        'stat_median': 'Median',
+        'stat_max': 'Max',
+        'stat_min': 'Min',
+        'stat_std': 'Std. Dev.',
+        # NEW INSIGHTS TRANSLATIONS
+        'insight_total_revenue': 'Total Revenue',
+        'insight_total_discounts': 'Total Discounts',
+        'insight_total_tax': 'Total Tax',
+        'insight_total_qty': 'Total Quantity',
+        'insight_top_branch': 'Top Branch',
+        'insight_top_salesman': 'Top Salesman',
+        'insight_top_product': 'Top Product',
     },
     'ar': {
         'title': 'تحليلات المبيعات والتنبؤ الاحترافي',
@@ -179,7 +196,7 @@ TRANSLATIONS = {
         'plot_warn': 'يرجى اختيار عمود واحد على الأقل للمحور الصادي.',
         'forecast_warn': 'يرجى اختيار عمود رقمي للتنبؤ.',
         'forecast_no_date': 'لم يتم تحديد عمود تاريخ. سيتم التنبؤ بناءً على تسلسل البيانات.',
-        'forecast_no_data': 'لا توجد بيانات كافية للتنبؤ (تحتاج 3 نقاط بيانات على الأقل).',
+        'forecast_no_data': 'لا توجد بيانات كافية للتنبؤ (تحتاج نقطتي بيانات على الأقل).',
         'forecast_fail': 'فشل التنبؤ',
         'forecast_table': 'جدول التنبؤ',
         'actual': 'الفعلي',
@@ -193,6 +210,23 @@ TRANSLATIONS = {
         'dashboard_info': 'اختر صفوفاً من الجدول أدناه لإنشاء مخططات ديناميكياً بناءً على اختيارك.',
         'plot_selection_title': 'مخطط للبيانات المحددة',
         'plot_all_title': 'مخطط لكل البيانات (لم يتم تحديد صفوف)',
+        # NEW STATS TRANSLATIONS
+        'stat_metric': 'المقياس',
+        'stat_value': 'القيمة',
+        'stat_count': 'العدد',
+        'stat_mean': 'المتوسط',
+        'stat_median': 'الوسيط',
+        'stat_max': 'الأعلى',
+        'stat_min': 'الأدنى',
+        'stat_std': 'الانحراف المعياري',
+        # NEW INSIGHTS TRANSLATIONS
+        'insight_total_revenue': 'إجمالي الإيرادات',
+        'insight_total_discounts': 'إجمالي الخصومات',
+        'insight_total_tax': 'إجمالي الضريبة',
+        'insight_total_qty': 'إجمالي الكمية',
+        'insight_top_branch': 'أفضل فرع',
+        'insight_top_salesman': 'أفضل بائع',
+        'insight_top_product': 'أفضل منتج',
     }
 }
 
@@ -414,12 +448,16 @@ def run_forecast(df: pd.DataFrame, date_col: Optional[str], fc_col: str, fc_peri
             tmp_series = tmp.set_index(date_col)[fc_col]
             tmp_series = tmp_series[~tmp_series.index.duplicated(keep='first')]
             
-            if tmp_series.shape[0] < 3:
+            # UPDATED: Allow forecast for 2 points (for a straight line)
+            if tmp_series.shape[0] < 2:
                 st.warning(t('forecast_no_data'))
                 return
 
             n = tmp_series.shape[0]
-            deg = 1 if n < 6 else 2
+            deg = 1 # Always use degree 1 (straight line) if n < 6
+            if n >= 6:
+                deg = 2 # Use degree 2 (curve) if 6 or more points
+                
             x = np.arange(n)
             coeffs = np.polyfit(x, tmp_series.values, deg)
             model = np.poly1d(coeffs)
@@ -469,12 +507,16 @@ def run_forecast(df: pd.DataFrame, date_col: Optional[str], fc_col: str, fc_peri
             # --- No date column: forecast on index ---
             st.info(t('forecast_no_date'))
             series = df[fc_col].dropna().astype(float)
-            if series.shape[0] < 3:
+            # UPDATED: Allow forecast for 2 points (for a straight line)
+            if series.shape[0] < 2:
                 st.warning(t('forecast_no_data'))
                 return
 
             n = series.shape[0]
-            deg = 1 if n < 6 else 2
+            deg = 1 # Always use degree 1 (straight line) if n < 6
+            if n >= 6:
+                deg = 2 # Use degree 2 (curve) if 6 or more points
+                
             x = np.arange(n)
             coeffs = np.polyfit(x, series.values, deg)
             model = np.poly1d(coeffs)
@@ -563,7 +605,8 @@ def generate_pdf_report(df: pd.DataFrame, stats: pd.DataFrame, insights: List[st
     # Statistics
     if not stats.empty:
         story.append(Paragraph(t('stats_summary'), styles['h2']))
-        stats_df_reset = stats.reset_index().rename(columns={'index': 'Metric'})
+        # UPDATED: Use translated key for the index column
+        stats_df_reset = stats.reset_index().rename(columns={'index': t('stat_metric')})
         stats_data = [stats_df_reset.columns.to_list()] + stats_df_reset.values.tolist()
         
         # Format numbers in data
@@ -625,9 +668,10 @@ def generate_pdf_report(df: pd.DataFrame, stats: pd.DataFrame, insights: List[st
 # ================================================
 
 @st.cache_data
-def get_automated_insights(df: pd.DataFrame) -> Tuple[List[str], Dict[str, str], Optional[str], Optional[str]]:
+def get_automated_insights(df: pd.DataFrame) -> Tuple[List[Tuple[str, str, str]], Dict[str, str], Optional[str], Optional[str]]:
     """Generates a list of textual insights based on column names."""
-    insights = []
+    # UPDATED: Insights is now a list of tuples (emoji, key, value)
+    insights: List[Tuple[str, str, str]] = []
     insights_dict = {}
 
     def safe_find(df: pd.DataFrame, possible_names: List[str]) -> Optional[str]:
@@ -643,40 +687,41 @@ def get_automated_insights(df: pd.DataFrame) -> Tuple[List[str], Dict[str, str],
     tax_col = safe_find(df, ["الضريبة", "ضريبة الصنف", "tax", "total tax"])
     qty_col = safe_find(df, ["الكمية", "كمية كرتون", "quantity", "total quantity"])
     branch_col = safe_find(df, ["الفرع", "branch"])
-    salesman_col = safe_find(df, ["اسم المندوب", "مندوب", "salesman"])
+    # UPDATED: Added 'seller' and 'بائع' to find top sealer
+    salesman_col = safe_find(df, ["اسم المندوب", "مندوب", "salesman", "seller", "بائع"])
     product_col = safe_find(df, ["اسم الصنف", "الصنف", "product", "category"])
 
     # Calculate totals
     if revenue_col and pd.api.types.is_numeric_dtype(df[revenue_col]):
         total_revenue = df[revenue_col].sum()
-        insights_dict["Total Revenue"] = f"{total_revenue:,.2f}"
-        insights.append(f"💰 Total Revenue: {total_revenue:,.2f}")
+        insights_dict['insight_total_revenue'] = f"{total_revenue:,.2f}"
+        insights.append(('💰', 'insight_total_revenue', f"{total_revenue:,.2f}"))
     if discount_col and pd.api.types.is_numeric_dtype(df[discount_col]):
         total_discount = df[discount_col].sum()
-        insights_dict["Total Discounts"] = f"{total_discount:,.2f}"
-        insights.append(f"🎯 Total Discounts: {total_discount:,.2f}")
+        insights_dict['insight_total_discounts'] = f"{total_discount:,.2f}"
+        insights.append(('🎯', 'insight_total_discounts', f"{total_discount:,.2f}"))
     if tax_col and pd.api.types.is_numeric_dtype(df[tax_col]):
         total_tax = df[tax_col].sum()
-        insights_dict["Total Tax"] = f"{total_tax:,.2f}"
-        insights.append(f"💸 Total Tax: {total_tax:,.2f}")
+        insights_dict['insight_total_tax'] = f"{total_tax:,.2f}"
+        insights.append(('💸', 'insight_total_tax', f"{total_tax:,.2f}"))
     if qty_col and pd.api.types.is_numeric_dtype(df[qty_col]):
         total_qty = df[qty_col].sum()
-        insights_dict["Total Quantity"] = f"{total_qty:,.2f}"
-        insights.append(f"📦 Total Quantity: {total_qty:,.2f}")
+        insights_dict['insight_total_qty'] = f"{total_qty:,.2f}"
+        insights.append(('📦', 'insight_total_qty', f"{total_qty:,.2f}"))
 
     # Find top categories
     if branch_col and revenue_col and pd.api.types.is_numeric_dtype(df[revenue_col]):
         top_branch = df.groupby(branch_col)[revenue_col].sum().idxmax()
-        insights_dict["Top Branch"] = str(top_branch)
-        insights.append(f"🏢 Top Branch by Revenue: {top_branch}")
+        insights_dict['insight_top_branch'] = str(top_branch)
+        insights.append(('🏢', 'insight_top_branch', str(top_branch)))
     if salesman_col and revenue_col and pd.api.types.is_numeric_dtype(df[revenue_col]):
         top_salesman = df.groupby(salesman_col)[revenue_col].sum().idxmax()
-        insights_dict["Top Salesman"] = str(top_salesman)
-        insights.append(f"🧍‍♂️ Top Salesman: {top_salesman}")
+        insights_dict['insight_top_salesman'] = str(top_salesman)
+        insights.append(('🧍‍♂️', 'insight_top_salesman', str(top_salesman)))
     if product_col and revenue_col and pd.api.types.is_numeric_dtype(df[revenue_col]):
         top_product = df.groupby(product_col)[revenue_col].sum().idxmax()
-        insights_dict["Top Product"] = str(top_product)
-        insights.append(f"🛒 Top Product: {top_product}")
+        insights_dict['insight_top_product'] = str(top_product)
+        insights.append(('🛒', 'insight_top_product', str(top_product)))
 
     return insights, insights_dict, revenue_col, branch_col
 
@@ -859,6 +904,15 @@ def main():
         # Use cached function
         stat_df = stats_summary(df)
         if not stat_df.empty:
+            # UPDATED: Rename columns using translations
+            stat_df = stat_df.rename(columns={
+                'count': t('stat_count'),
+                'mean': t('stat_mean'), # This becomes 'Average'
+                'median': t('stat_median'),
+                'max': t('stat_max'),
+                'min': t('stat_min'),
+                'std': t('stat_std')
+            })
             st.dataframe(stat_df.style.format("{:,.2f}"))
         else:
             st.info(t('no_numeric_stats'))
@@ -956,15 +1010,22 @@ def main():
         st.subheader(t('insights'))
         with st.spinner('Generating insights...'):
             # Use cached function
-            insights, insights_dict, rev_col, br_col = get_automated_insights(df)
+            # UPDATED: Get raw keys from function
+            raw_insights, raw_insights_dict, rev_col, br_col = get_automated_insights(df)
             
-            if insights_dict:
+            # NEW: Translate the results here
+            translated_insights_dict = {t(key): value for key, value in raw_insights_dict.items()}
+            translated_insights_list = [(emoji, t(key), value) for emoji, key, value in raw_insights]
+
+            if translated_insights_dict:
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.dataframe(pd.DataFrame(list(insights_dict.items()), columns=["Metric", "Value"]))
+                    # UPDATED: Use translated dict and translated column names
+                    st.dataframe(pd.DataFrame(list(translated_insights_dict.items()), columns=[t('stat_metric'), t('stat_value')]))
                 with c2:
-                    for ins in insights:
-                        st.markdown(f"- {ins}")
+                    # UPDATED: Use translated list
+                    for emoji, key, value in translated_insights_list:
+                        st.markdown(f"- {emoji} {key}: {value}")
                 
                 if rev_col and br_col and pd.api.types.is_numeric_dtype(df[rev_col]):
                     try:
@@ -1002,13 +1063,24 @@ def main():
     with tab_export:
         st.subheader(t('export_tab'))
         # Get cached insights and stats
-        insights, _, _, _ = get_automated_insights(df)
+        # UPDATED: Get raw insights and translate them for the report
+        raw_insights, _, _, _ = get_automated_insights(df)
+        insights = [f"{emoji} {t(key)}: {value}" for emoji, key, value in raw_insights]
         stat_df = stats_summary(df)
+        # UPDATED: Translate stats df for the report as well
+        stat_df_translated = stat_df.rename(columns={
+            'count': t('stat_count'),
+            'mean': t('stat_mean'),
+            'median': t('stat_median'),
+            'max': t('stat_max'),
+            'min': t('stat_min'),
+            'std': t('stat_std')
+        })
 
         # Excel Download
         excel_data = df_to_excel_bytes({
             'Raw_Data': df,
-            'Statistics': stat_df.reset_index()
+            'Statistics': stat_df_translated.reset_index() # Use translated
         })
         st.download_button(
             label=f"📥 {t('download_excel')}",
@@ -1029,7 +1101,7 @@ def main():
         # PDF Download
         try:
             with st.spinner('Generating PDF Report...'):
-                pdf_data = generate_pdf_report(df, stat_df, insights)
+                pdf_data = generate_pdf_report(df, stat_df_translated, insights) # Use translated
             st.download_button(
                 label=f"📥 {t('download_pdf')}",
                 data=pdf_data,
@@ -1043,8 +1115,8 @@ def main():
     st.markdown(
         """
         <hr style="margin-top:50px; margin-bottom:10px; border:1px solid #444;">
-        <div style='text-align: center; color: #aaa; font-size: 14px;'>
-            {t('footer_credit')} <b style='color:#00BFFF;'>Sameh Sobhy Attia</b> (Pro Version by Gemini)
+        <div style='text-align: center; color: #aaa; font-size: 16px;'>
+            {t('footer_credit')} <b style='color:#00BFFF;'>Sameh Sobhy Attia</b> (Pro Version by TIBA for Sales)
         </div>
         """.replace('{t(\'footer_credit\')}', t('footer_credit')),
         unsafe_allow_html=True
@@ -1055,7 +1127,4 @@ def main():
 # ================================================
 if __name__ == "__main__":
     main()
-
-
-
 
