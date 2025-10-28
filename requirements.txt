@@ -13,4 +13,4 @@ xlsxwriter
 pdfplumber
 lxml
 beautifulsoup4
-
+st-aggrid
