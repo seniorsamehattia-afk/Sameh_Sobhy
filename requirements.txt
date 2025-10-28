@@ -10,3 +10,7 @@ statsmodels
 altair
 seaborn
 xlsxwriter
+pdfplumber
+lxml
+beautifulsoup4
+
